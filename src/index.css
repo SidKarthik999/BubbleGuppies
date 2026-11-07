@@ -282,15 +282,18 @@ input, select, textarea { font: inherit; color: inherit; }
 
 /* Notebook inside the lecture screen */
 .notebook { position: absolute; inset: 0; display: flex; flex-direction: column; }
-/* iPad: a pencil press-and-drag on the page must draw, never select text.
-   Blocks the blue selection highlight, the long-press callout/lookup menu,
-   and the grey tap flash. Typed text boxes stay editable/selectable. */
+/* iPad: while taking notes, a pencil press-and-drag must never select text,
+   on the page or on the surrounding chrome (record button and timer, top bar,
+   feed). Blocks the blue selection highlight, the long-press callout/lookup
+   menu, and the grey tap flash. Typed text boxes and inputs stay selectable. */
+.screen.lecture, .screen.lecture *,
 .notebook, .notebook * {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+.screen.lecture textarea, .screen.lecture input, .screen.lecture [contenteditable="true"],
 .notebook textarea, .notebook input, .notebook [contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
