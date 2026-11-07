@@ -18,7 +18,7 @@ import { readJson, sendError, sendJson } from "./lib/http.mjs";
 import { LIMITS } from "./lib/limits.mjs";
 import { handleAnalyze } from "./routes/analyze.mjs";
 import { handleAssist } from "./routes/assist.mjs";
-import { handleDraw } from "./routes/draw.mjs";
+import { handleDraw, sketchModelConfig } from "./routes/draw.mjs";
 import { handleTranscribe } from "./routes/transcribe.mjs";
 
 export { DEFAULT_MODEL, readConfig } from "./lib/config.mjs";
@@ -80,6 +80,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       `Model: ${config.model}. Vision model: ${config.visionModel}. Reasoning effort: ${config.reasoningEffort ?? "not sent"}. ` +
         `API key ${config.apiKey ? "configured" : "missing (model routes return 503)"}.`,
     );
+    const sketch = sketchModelConfig();
+    console.info(`Sketches (anatomy-live): ${sketch.model}${sketch.provider ? ` via ${sketch.provider}` : ""}.`);
   });
   const shutdown = () => server.close(() => process.exit(0));
   process.on("SIGINT", shutdown);

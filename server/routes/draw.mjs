@@ -8,7 +8,7 @@
 // gears, triangles, circuits) work without a key.
 
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -17,15 +17,62 @@ import { ApiError } from "../lib/errors.mjs";
 const ANATOMY_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "anatomy-live");
 const MAX_BODY = 4096;
 
+// Model for Anatomy Live's sketch and review calls. Upstream uses Claude Haiku
+// 5.5; Bubble Notes uses Claude Opus 5.5 in fast mode, which OpenRouter serves
+// as the "anthropic/fast" endpoint of anthropic/claude-opus-5.5 (2× Opus price).
+// Override in server/.env: ANATOMY_LIVE_MODEL, and ANATOMY_LIVE_PROVIDER
+// ("" keeps upstream's latency-sorted routing).
+export const DEFAULT_SKETCH_MODEL = "anthropic/claude-opus-5.5";
+export const DEFAULT_SKETCH_PROVIDER = "anthropic/fast";
+
+const UPSTREAM_MODEL_LINE = "const model = 'anthropic/claude-haiku-5.5';";
+const UPSTREAM_PROVIDER = "provider: { sort: 'latency' }";
+const UPSTREAM_REASONING = "reasoning: { enabled: false }";
+
+export function sketchModelConfig(env = process.env) {
+  const model = (env.ANATOMY_LIVE_MODEL ?? "").trim() || DEFAULT_SKETCH_MODEL;
+  const provider = env.ANATOMY_LIVE_PROVIDER === undefined ? DEFAULT_SKETCH_PROVIDER : env.ANATOMY_LIVE_PROVIDER.trim();
+  return { model, provider };
+}
+
+/**
+ * Points the built bundle at the configured model and endpoint. Throws if
+ * upstream changed the lines it rewrites, so a silent fallback to Haiku can't happen.
+ */
+export function patchBundle(source, { model, provider }) {
+  if (!source.includes(UPSTREAM_MODEL_LINE)) throw new Error("anatomy-live model line changed upstream");
+  let out = source.replace(UPSTREAM_MODEL_LINE, `const model = ${JSON.stringify(model)};`);
+  if (provider) {
+    if (!out.includes(UPSTREAM_PROVIDER)) throw new Error("anatomy-live provider routing changed upstream");
+    // Pin the endpoint (no fallback), so "fast" really is fast mode.
+    out = out.split(UPSTREAM_PROVIDER).join(`provider: { only: [${JSON.stringify(provider)}], allow_fallbacks: false }`);
+  }
+  if (!/haiku/i.test(model)) {
+    // Opus 5.5 rejects `reasoning: { enabled: false }` ("Reasoning is mandatory").
+    // Use the lowest effort instead, and give the token budget headroom, since
+    // reasoning tokens count against max_tokens (sketch 840 → 2400, review 300 → 1200).
+    if (!out.includes(UPSTREAM_REASONING)) throw new Error("anatomy-live reasoning setting changed upstream");
+    out = out
+      .split(UPSTREAM_REASONING)
+      .join(`reasoning: { effort: "minimal", exclude: true }`)
+      .replace("max_tokens: 840", "max_tokens: 2400")
+      .replace("max_tokens: 300", "max_tokens: 1200");
+  }
+  return out;
+}
+
 let workerPromise = null;
 
-/** Builds Anatomy Live's bundle once (its own build.mjs) and imports it. */
+/** Builds Anatomy Live's bundle once (its own build.mjs), applies the model choice, and imports it. */
 function loadWorker() {
   if (!workerPromise) {
     workerPromise = (async () => {
       if (!existsSync(join(ANATOMY_DIR, "build.mjs"))) throw new Error("anatomy-live folder not found");
       execFileSync(process.execPath, ["build.mjs"], { cwd: ANATOMY_DIR, stdio: "ignore", timeout: 20_000 });
-      const mod = await import(pathToFileURL(join(ANATOMY_DIR, "dist", "server", "index.js")).href + `?t=${Date.now()}`);
+      const built = join(ANATOMY_DIR, "dist", "server", "index.js");
+      const patched = join(ANATOMY_DIR, "dist", "server", "bubble-notes.js");
+      writeFileSync(patched, patchBundle(readFileSync(built, "utf8"), sketchModelConfig()));
+      const mod = await import(pathToFileURL(patched).href + `?t=${Date.now()}`);
       return mod.default;
     })();
     workerPromise.catch(() => {
