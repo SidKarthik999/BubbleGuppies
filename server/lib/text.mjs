@@ -44,6 +44,18 @@ export function requireEnum(value, path, allowed) {
   return value;
 }
 
+/** Plain text from model prose: drops common markdown marks, bare URLs, and [n] markers. */
+export function proseToPlain(value) {
+  return cleanText(
+    value
+      .replace(/\[([^\]]+)\]\((?:https?:)?[^)]*\)/g, "$1") // [text](url) -> text
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/\[\d+(?:,\s*\d+)*\]/g, "")
+      .replace(/(\*\*|__|`)/g, "")
+      .replace(/^\s{0,3}(#{1,6}|[-*•]|\d+\.)\s+/gm, ""),
+  ).replace(/\s+([.,;:!?])/g, "$1");
+}
+
 /** Shortens model text to `max` characters on a word boundary, adding "…". */
 export function clip(text, max) {
   if (text.length <= max) return text;
