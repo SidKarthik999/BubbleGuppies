@@ -1,0 +1,193 @@
+{
+  "about": "Short lecture snippets labeled with the visual type the content shape calls for. Used by server/scripts/visual-eval.mjs. stubVisual is the reference answer the stub upstream returns; it must pass server validation without a downgrade.",
+  "snippets": [
+    {
+      "id": "flow-tcp-handshake",
+      "expected": "flowchart",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 9, "text": "To open a TCP connection, the client first sends a SYN packet to the server." },
+        { "id": "s2", "startSec": 9, "endSec": 18, "text": "The server replies with SYN-ACK. Then the client sends an ACK, and only after that step can data be sent." }
+      ],
+      "stubVisual": { "topic": "TCP three-way handshake", "recap": "A connection opens with SYN, SYN-ACK, then ACK before data flows.", "visualType": "flowchart",
+        "nodes": [{ "id": "n1", "label": "Client sends SYN" }, { "id": "n2", "label": "Server replies SYN-ACK" }, { "id": "n3", "label": "Client sends ACK" }, { "id": "n4", "label": "Data transfer begins" }],
+        "edges": [{ "from": "n1", "to": "n2" }, { "from": "n2", "to": "n3" }, { "from": "n3", "to": "n4" }] }
+    },
+    {
+      "id": "flow-triage-decision",
+      "expected": "flowchart",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "In triage, first check whether the patient is breathing. If not, open the airway immediately." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "If they are breathing, check the pulse next; a weak pulse means they go to the urgent queue, otherwise to standard care." }
+      ],
+      "stubVisual": { "topic": "Triage decisions", "recap": "Check breathing, then pulse, to route the patient.", "visualType": "flowchart",
+        "nodes": [{ "id": "n1", "label": "Breathing?" }, { "id": "n2", "label": "Open the airway" }, { "id": "n3", "label": "Check pulse" }, { "id": "n4", "label": "Urgent queue" }, { "id": "n5", "label": "Standard care" }],
+        "edges": [{ "from": "n1", "to": "n2", "label": "no" }, { "from": "n1", "to": "n3", "label": "yes" }, { "from": "n3", "to": "n4", "label": "weak" }, { "from": "n3", "to": "n5", "label": "normal" }] }
+    },
+    {
+      "id": "cycle-krebs",
+      "expected": "cycle",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "The citric acid cycle starts when acetyl CoA joins oxaloacetate to form citrate." },
+        { "id": "s2", "startSec": 10, "endSec": 21, "text": "Citrate is converted to isocitrate, then alpha-ketoglutarate, then succinate, and finally oxaloacetate is regenerated so the cycle runs again." }
+      ],
+      "stubVisual": { "topic": "Citric acid cycle", "recap": "Oxaloacetate is regenerated so the cycle repeats.", "visualType": "cycle",
+        "nodes": [{ "id": "n1", "label": "Citrate" }, { "id": "n2", "label": "Isocitrate" }, { "id": "n3", "label": "Alpha-ketoglutarate" }, { "id": "n4", "label": "Succinate" }, { "id": "n5", "label": "Oxaloacetate" }],
+        "edges": [{ "from": "n1", "to": "n2" }, { "from": "n2", "to": "n3" }, { "from": "n3", "to": "n4" }, { "from": "n4", "to": "n5" }, { "from": "n5", "to": "n1", "label": "plus acetyl CoA" }] }
+    },
+    {
+      "id": "cycle-business",
+      "expected": "cycle",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 9, "text": "The business cycle moves from expansion to a peak, where growth tops out." },
+        { "id": "s2", "startSec": 9, "endSec": 19, "text": "Then comes a contraction, then a trough, and from the trough the economy recovers into expansion again, over and over." }
+      ],
+      "stubVisual": { "topic": "Business cycle", "recap": "Economies repeat expansion, peak, contraction, and trough.", "visualType": "cycle",
+        "nodes": [{ "id": "n1", "label": "Expansion" }, { "id": "n2", "label": "Peak" }, { "id": "n3", "label": "Contraction" }, { "id": "n4", "label": "Trough" }],
+        "edges": [{ "from": "n1", "to": "n2" }, { "from": "n2", "to": "n3" }, { "from": "n3", "to": "n4" }, { "from": "n4", "to": "n1" }] }
+    },
+    {
+      "id": "timeline-civil-rights",
+      "expected": "timeline",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "In 1954, Brown v. Board of Education ruled school segregation unconstitutional." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "The Montgomery bus boycott began in 1955, the Civil Rights Act passed in 1964, and the Voting Rights Act followed in 1965." }
+      ],
+      "stubVisual": { "topic": "Civil rights milestones", "recap": "Key rulings and laws from 1954 to 1965.", "visualType": "timeline",
+        "nodes": [{ "id": "n1", "label": "1954 Brown v. Board" }, { "id": "n2", "label": "1955 bus boycott" }, { "id": "n3", "label": "1964 Civil Rights Act" }, { "id": "n4", "label": "1965 Voting Rights Act" }],
+        "edges": [{ "from": "n1", "to": "n2" }, { "from": "n2", "to": "n3" }, { "from": "n3", "to": "n4" }] }
+    },
+    {
+      "id": "timeline-computing",
+      "expected": "timeline",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 9, "text": "ENIAC was finished in 1945. The transistor was invented at Bell Labs in 1947." },
+        { "id": "s2", "startSec": 9, "endSec": 18, "text": "The integrated circuit arrived in 1958, and the first microprocessor, the Intel 4004, shipped in 1971." }
+      ],
+      "stubVisual": { "topic": "Early computing hardware", "recap": "From ENIAC to the microprocessor in 26 years.", "visualType": "timeline",
+        "nodes": [{ "id": "n1", "label": "1945 ENIAC" }, { "id": "n2", "label": "1947 transistor" }, { "id": "n3", "label": "1958 integrated circuit" }, { "id": "n4", "label": "1971 Intel 4004" }],
+        "edges": [{ "from": "n1", "to": "n2" }, { "from": "n2", "to": "n3" }, { "from": "n3", "to": "n4" }] }
+    },
+    {
+      "id": "hierarchy-taxonomy",
+      "expected": "hierarchy",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Rocks fall into three main categories: igneous, sedimentary, and metamorphic." },
+        { "id": "s2", "startSec": 10, "endSec": 21, "text": "Igneous rocks split into intrusive ones like granite and extrusive ones like basalt. Sedimentary includes sandstone and limestone." }
+      ],
+      "stubVisual": { "topic": "Rock classification", "recap": "Rocks are igneous, sedimentary, or metamorphic, with subtypes.", "visualType": "hierarchy",
+        "nodes": [{ "id": "r", "label": "Rocks" }, { "id": "ig", "label": "Igneous", "group": "Igneous" }, { "id": "sed", "label": "Sedimentary", "group": "Sedimentary" }, { "id": "met", "label": "Metamorphic", "group": "Metamorphic" },
+          { "id": "int", "label": "Intrusive (granite)", "group": "Igneous" }, { "id": "ext", "label": "Extrusive (basalt)", "group": "Igneous" }, { "id": "ss", "label": "Sandstone", "group": "Sedimentary" }, { "id": "ls", "label": "Limestone", "group": "Sedimentary" }],
+        "edges": [{ "from": "r", "to": "ig" }, { "from": "r", "to": "sed" }, { "from": "r", "to": "met" }, { "from": "ig", "to": "int" }, { "from": "ig", "to": "ext" }, { "from": "sed", "to": "ss" }, { "from": "sed", "to": "ls" }] }
+    },
+    {
+      "id": "hierarchy-government",
+      "expected": "hierarchy",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "The federal government has three branches: legislative, executive, and judicial." },
+        { "id": "s2", "startSec": 10, "endSec": 19, "text": "The legislative branch is made up of two parts, the Senate and the House of Representatives." }
+      ],
+      "stubVisual": { "topic": "Branches of government", "recap": "Three branches; Congress has two chambers.", "visualType": "hierarchy",
+        "nodes": [{ "id": "g", "label": "Federal government" }, { "id": "l", "label": "Legislative" }, { "id": "e", "label": "Executive" }, { "id": "j", "label": "Judicial" }, { "id": "s", "label": "Senate" }, { "id": "h", "label": "House" }],
+        "edges": [{ "from": "g", "to": "l" }, { "from": "g", "to": "e" }, { "from": "g", "to": "j" }, { "from": "l", "to": "s" }, { "from": "l", "to": "h" }] }
+    },
+    {
+      "id": "comparison-mitosis-meiosis",
+      "expected": "comparison",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Let's compare mitosis and meiosis. Mitosis produces two daughter cells; meiosis produces four." },
+        { "id": "s2", "startSec": 10, "endSec": 21, "text": "Mitosis daughter cells are genetically identical and diploid, while meiosis cells are genetically different and haploid." }
+      ],
+      "stubVisual": { "topic": "Mitosis vs meiosis", "recap": "Mitosis makes two identical diploid cells; meiosis makes four varied haploid cells.", "visualType": "comparison",
+        "nodes": [{ "id": "m1", "label": "Two daughter cells", "group": "Mitosis" }, { "id": "m2", "label": "Genetically identical", "group": "Mitosis" }, { "id": "m3", "label": "Diploid", "group": "Mitosis" },
+          { "id": "x1", "label": "Four daughter cells", "group": "Meiosis" }, { "id": "x2", "label": "Genetically different", "group": "Meiosis" }, { "id": "x3", "label": "Haploid", "group": "Meiosis" }],
+        "edges": [{ "from": "m1", "to": "x1", "label": "cell count" }, { "from": "m2", "to": "x2", "label": "genetics" }, { "from": "m3", "to": "x3", "label": "ploidy" }] }
+    },
+    {
+      "id": "comparison-tcp-udp",
+      "expected": "comparison",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 9, "text": "TCP and UDP differ in a few ways. TCP is connection-oriented and guarantees delivery." },
+        { "id": "s2", "startSec": 9, "endSec": 18, "text": "UDP is connectionless and makes no delivery guarantee, but it has lower overhead, so it suits streaming. TCP has higher overhead." }
+      ],
+      "stubVisual": { "topic": "TCP vs UDP", "recap": "TCP trades overhead for reliability; UDP is light but unreliable.", "visualType": "comparison",
+        "nodes": [{ "id": "t1", "label": "Connection-oriented", "group": "TCP" }, { "id": "t2", "label": "Guaranteed delivery", "group": "TCP" }, { "id": "t3", "label": "Higher overhead", "group": "TCP" },
+          { "id": "u1", "label": "Connectionless", "group": "UDP" }, { "id": "u2", "label": "No delivery guarantee", "group": "UDP" }, { "id": "u3", "label": "Lower overhead", "group": "UDP" }],
+        "edges": [{ "from": "t1", "to": "u1" }, { "from": "t2", "to": "u2" }, { "from": "t3", "to": "u3" }] }
+    },
+    {
+      "id": "venn-dna-rna",
+      "expected": "venn",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "DNA and RNA overlap in some features. Both have a sugar-phosphate backbone and both use adenine, guanine, and cytosine." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "Only DNA uses thymine and deoxyribose and is double stranded. Only RNA uses uracil and ribose and is usually single stranded." }
+      ],
+      "stubVisual": { "topic": "DNA (A) and RNA (B)", "recap": "DNA and RNA share a backbone and three bases but differ in sugar, one base, and strands.", "visualType": "venn",
+        "nodes": [{ "id": "a1", "label": "Thymine", "group": "A" }, { "id": "a2", "label": "Deoxyribose", "group": "A" }, { "id": "a3", "label": "Double stranded", "group": "A" },
+          { "id": "b1", "label": "Uracil", "group": "B" }, { "id": "b2", "label": "Ribose", "group": "B" }, { "id": "b3", "label": "Usually single stranded", "group": "B" },
+          { "id": "c1", "label": "Sugar-phosphate backbone", "group": "both" }, { "id": "c2", "label": "Adenine, guanine, cytosine", "group": "both" }],
+        "edges": [] }
+    },
+    {
+      "id": "venn-renewable-nuclear",
+      "expected": "venn",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Think of the overlap between renewable sources and low-carbon sources. Solar and wind are in both sets." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "Nuclear is low carbon but not renewable. Burning wood biomass counts as renewable but is not low carbon at the smokestack." }
+      ],
+      "stubVisual": { "topic": "Renewable (A) and low-carbon (B) energy", "recap": "Solar and wind are both; nuclear is only low carbon; biomass only renewable.", "visualType": "venn",
+        "nodes": [{ "id": "a1", "label": "Wood biomass", "group": "A" }, { "id": "b1", "label": "Nuclear", "group": "B" }, { "id": "c1", "label": "Solar", "group": "both" }, { "id": "c2", "label": "Wind", "group": "both" }],
+        "edges": [] }
+    },
+    {
+      "id": "chart-enrollment",
+      "expected": "chart",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Course enrollment has grown fast. We had 120 students in 2022 and 180 in 2023." },
+        { "id": "s2", "startSec": 10, "endSec": 18, "text": "This year we're at 260 students, more than double 2022." }
+      ],
+      "stubVisual": { "topic": "Course enrollment growth", "recap": "Enrollment grew from 120 in 2022 to 260 this year.", "visualType": "chart", "nodes": [], "edges": [],
+        "chart": { "kind": "line", "unit": "students", "points": [{ "label": "2022", "value": 120 }, { "label": "2023", "value": 180 }, { "label": "This year", "value": 260 }] } }
+    },
+    {
+      "id": "chart-energy-mix",
+      "expected": "chart",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Here's last year's electricity mix: natural gas supplied 43 percent and nuclear 18 percent." },
+        { "id": "s2", "startSec": 10, "endSec": 19, "text": "Coal was down to 16 percent, wind 10 percent, and solar about 4 percent." }
+      ],
+      "stubVisual": { "topic": "Electricity mix last year", "recap": "Natural gas led at 43 percent.", "visualType": "chart", "nodes": [], "edges": [],
+        "chart": { "kind": "bar", "unit": "%", "points": [{ "label": "Natural gas", "value": 43 }, { "label": "Nuclear", "value": 18 }, { "label": "Coal", "value": 16 }, { "label": "Wind", "value": 10 }, { "label": "Solar", "value": 4 }] } }
+    },
+    {
+      "id": "concept-supply-demand",
+      "expected": "concept-map",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Price, supply, and demand are all tangled together. Higher prices discourage demand but encourage suppliers." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "Consumer income shifts demand, and production costs shift supply, and both of those feed back into price." }
+      ],
+      "stubVisual": { "topic": "Supply, demand, and price", "recap": "Price, supply, and demand influence each other.", "visualType": "concept-map",
+        "nodes": [{ "id": "p", "label": "Price" }, { "id": "d", "label": "Demand" }, { "id": "s", "label": "Supply" }, { "id": "i", "label": "Consumer income" }, { "id": "c", "label": "Production costs" }],
+        "edges": [{ "from": "p", "to": "d", "label": "discourages" }, { "from": "p", "to": "s", "label": "encourages" }, { "from": "i", "to": "d", "label": "shifts" }, { "from": "c", "to": "s", "label": "shifts" }] }
+    },
+    {
+      "id": "schematic-computer",
+      "expected": "schematic",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 10, "text": "Inside the computer, the CPU connects to main memory over the memory bus." },
+        { "id": "s2", "startSec": 10, "endSec": 20, "text": "The GPU and the SSD both attach to the CPU through PCIe lanes, and the network card hangs off the chipset." }
+      ],
+      "stubVisual": { "topic": "Computer components", "recap": "The CPU links memory, GPU, and storage; the NIC hangs off the chipset.", "visualType": "schematic",
+        "nodes": [{ "id": "cpu", "label": "CPU" }, { "id": "ram", "label": "Main memory" }, { "id": "gpu", "label": "GPU" }, { "id": "ssd", "label": "SSD" }, { "id": "chip", "label": "Chipset" }, { "id": "nic", "label": "Network card" }],
+        "edges": [{ "from": "cpu", "to": "ram", "label": "memory bus" }, { "from": "cpu", "to": "gpu", "label": "PCIe" }, { "from": "cpu", "to": "ssd", "label": "PCIe" }, { "from": "cpu", "to": "chip" }, { "from": "chip", "to": "nic" }] }
+    },
+    {
+      "id": "recap-logistics",
+      "expected": "recap",
+      "segments": [
+        { "id": "s1", "startSec": 0, "endSec": 9, "text": "Quick reminder before we start: the midterm is next Thursday in this room." },
+        { "id": "s2", "startSec": 9, "endSec": 17, "text": "It covers chapters one through five, and you can bring one page of handwritten notes." }
+      ],
+      "stubVisual": { "topic": "Midterm logistics", "recap": "Midterm next Thursday here, chapters 1–5, one handwritten page allowed.", "visualType": "recap", "nodes": [], "edges": [] }
+    }
+  ]
+}

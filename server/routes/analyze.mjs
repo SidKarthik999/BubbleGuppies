@@ -390,6 +390,7 @@ export async function runWebPass(config, input, pass1, timeoutMs) {
   const answers = new Map(pass1.answers);
   const list = Array.isArray(data?.answers) ? data.answers : [];
   const asked = new Set(pass1.needsWeb);
+  const singleCue = asked.size === 1;
   for (const raw of list) {
     if (!isPlainObject(raw) || !asked.has(raw.cueId)) continue;
     const cue = input.cues.find((c) => c.id === raw.cueId);
@@ -397,7 +398,7 @@ export async function runWebPass(config, input, pass1, timeoutMs) {
     if (!cue || !body) continue;
     let citations = filterCitations((raw.urls ?? []).map((url) => ({ kind: "web", url })), ctx, ["web"]);
     // With a single cue, every provider source belongs to that answer.
-    if (citations.length === 0 && asked.size === 1) citations = annotationCitations(ctx);
+    if (citations.length === 0 && singleCue) citations = annotationCitations(ctx);
     if (citations.length === 0) continue; // unsourced web answer: keep pass 1's answer
     const title = (typeof raw.title === "string" && cleanText(raw.title)) || cue.text;
     answers.set(cue.id, { cueId: cue.id, kind: cue.kind, title: clip(title, LIMITS.cueTitleChars), body: clip(body, LIMITS.cueBodyChars), citations });
