@@ -1,0 +1,9 @@
+{
+  "name": "bubble-notes-api",
+  "private": true,
+  "type": "module",
+  "description": "Analysis API (the \"api\" Vercel service). Node built-ins only; no dependencies.",
+  "engines": {
+    "node": ">=22"
+  }
+}
