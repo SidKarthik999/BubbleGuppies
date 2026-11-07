@@ -32,8 +32,17 @@ const ROUTES = {
 };
 
 /** Creates the HTTP server. `config` is injectable for tests (e.g. a stub OPENROUTER_BASE_URL). */
-export function createServer({ config = readConfig(), log = console } = {}) {
-  return http.createServer(async (req, res) => {
+export function createServer(options = {}) {
+  return http.createServer(createHandler(options));
+}
+
+/**
+ * The (req, res) request handler behind createServer. Exported separately so a
+ * host that supplies its own HTTP server (e.g. a Vercel Node service, see
+ * server/vercel.mjs) can use the same routes without calling listen().
+ */
+export function createHandler({ config = readConfig(), log = console } = {}) {
+  return async (req, res) => {
     const started = Date.now();
     const path = (req.url ?? "/").split("?")[0];
     const notes = [];
@@ -68,7 +77,7 @@ export function createServer({ config = readConfig(), log = console } = {}) {
       // bodies, transcript text, image data, or credentials.
       log.info?.(`${req.method} ${path} ${res.statusCode} ${Date.now() - started}ms${notes.length ? ` (${notes.join("; ")})` : ""}`);
     }
-  });
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
