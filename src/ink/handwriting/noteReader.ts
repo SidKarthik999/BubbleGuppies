@@ -17,7 +17,7 @@ const MAX_SIDE = 2048;
 export class NoteReader {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private reading = new Set<string>();
-  private unsub: () => void;
+  private unsub: (() => void) | null = null;
   enabled = false;
 
   constructor(
@@ -25,7 +25,17 @@ export class NoteReader {
     private readonly ocr: OcrClient,
     private readonly onLines: (changed: NoteLine[]) => void
   ) {
-    this.unsub = store.subscribe((e) => {
+    this.attach();
+  }
+
+  /**
+   * Listens to the notebook. Safe to call again after destroy(): React
+   * StrictMode (dev) mounts, unmounts, and remounts effects, so the hook
+   * re-attaches on every mount instead of relying on the constructor.
+   */
+  attach(): void {
+    if (this.unsub) return;
+    this.unsub = this.store.subscribe((e) => {
       if (!this.enabled) return;
       if (e.type === "stroke-added" || e.type === "page-changed") this.schedule(e.pageId);
       if (e.type === "notebook-replaced") this.cancelAll();
@@ -34,7 +44,8 @@ export class NoteReader {
 
   destroy(): void {
     this.cancelAll();
-    this.unsub();
+    this.unsub?.();
+    this.unsub = null;
   }
 
   setEnabled(on: boolean): void {

@@ -53,7 +53,12 @@ export function useHandwriting(store: NotebookStore, onSegments: (segments: Segm
     if (!enabled) ocr.turnOff();
   }, [enabled, ocr, reader, store]);
 
-  useEffect(() => () => reader.destroy(), [reader]);
+  // Attach on every mount: StrictMode's dev-only unmount/remount would
+  // otherwise leave the reader unsubscribed after destroy().
+  useEffect(() => {
+    reader.attach();
+    return () => reader.destroy();
+  }, [reader]);
 
   const setEnabled = useCallback((on: boolean) => {
     setEnabledState(on);
