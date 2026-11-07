@@ -1,0 +1,76 @@
+:root {
+  color-scheme: dark;
+  --bg: #131613;
+  --panel: #191e19;
+  --border: #354237;
+  --ink: #edf4e9;
+  --quiet: #a7b5a6;
+  --mint: #a8eab7;
+  --violet: #c1b0f2;
+  --amber: #eaca85;
+  --muted: #a7b5a6;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.studio { max-width: 1000px; padding: 0 clamp(18px, 5vw, 48px) 40px; margin: auto; }
+.masthead { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 19px 0; border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 650; }
+.brand > span:last-child { color: var(--quiet); font-weight: 450; }
+.brand-mark { color: var(--mint); font-size: 24px; line-height: 1; }
+.engine, .eyebrow, .samples > span, .board-top > span:last-child, .board-bottom {
+  font: 12px ui-monospace, monospace;
+}
+.engine { display: inline-flex; align-items: center; gap: 7px; color: var(--quiet); white-space: nowrap; }
+.engine > span { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); }
+.intro { padding: clamp(24px, 5vh, 56px) 0 20px; }
+.eyebrow { color: var(--mint); text-transform: uppercase; letter-spacing: 0.14em; margin: 0 0 8px; }
+h1 { font-size: clamp(37px, 6vw, 72px); line-height: 1.02; letter-spacing: -0.065em; margin: 0; font-weight: 660; }
+.intro p:last-child { color: var(--quiet); margin: 10px 0 0; line-height: 1.5; }
+.prompt { display: flex; gap: 8px; padding: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.prompt input { background: transparent; color: var(--ink); border: none; width: 100%; min-width: 0; padding: 8px 10px; border-radius: 6px; }
+.prompt input::placeholder { color: var(--quiet); }
+.draw, .stop { border-radius: 7px; border: 1px solid transparent; padding: 9px 16px; white-space: nowrap; }
+.draw { background: var(--mint); color: #102418; font-weight: 650; }
+.draw span { margin-left: 5px; }
+.draw:disabled { opacity: 0.6; cursor: default; }
+.stop { background: transparent; color: var(--ink); border-color: var(--border); }
+.samples { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; padding: 11px 0 15px; }
+.samples > span { color: var(--quiet); margin-right: 4px; }
+.samples button { border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--ink); padding: 6px 9px; font-size: 12px; }
+.samples button:hover { border-color: var(--mint); }
+.board { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.board-top, .board-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--panel); padding: 11px 14px; }
+.board-top { border-bottom: 1px solid var(--border); }
+.board-top > span:first-child { overflow-wrap: anywhere; font-size: 14px; font-weight: 550; }
+.board-top > span:last-child, .board-bottom { color: var(--quiet); }
+.board-top > span:last-child { flex-shrink: 0; }
+.board-bottom { border-top: 1px solid var(--border); line-height: 1.4; }
+#timing { text-align: right; white-space: nowrap; }
+.paper {
+  background: radial-gradient(circle, #37443a 1px, transparent 1px) 0 0 / 20px 20px, #141a16;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+#canvas { display: block; width: 100%; max-width: 760px; height: auto; }
+#canvas text { font: 500 20px ui-monospace, monospace; paint-order: stroke fill; stroke: #141a16; stroke-width: 3; stroke-linejoin: round; }
+#canvas .mark { animation: appear 125ms var(--ease-out) both; }
+@keyframes appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #canvas .mark { animation: none; } }
+.takeaway { margin: 13px 0 0; color: var(--quiet); font-size: 14px; line-height: 1.5; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 480px) {
+  #canvas text { font-size: 25px; }
+  .draw, .stop { padding-inline: 10px; }
+  .engine { font-size: 11px; }
+  .samples button { min-height: 32px; }
+  .board-top, .board-bottom { padding-inline: 10px; }
+}
