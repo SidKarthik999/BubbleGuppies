@@ -14,3 +14,6 @@ npm-debug.log*
 
 # retired files moved aside (safe to delete)
 .trash/
+
+# TypeScript build info from `tsc -b`
+*.tsbuildinfo

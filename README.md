@@ -96,6 +96,15 @@ squeezed while the visual stays visible.
   jump the recording to when it was written. The sample demo synthesizes a
   placeholder track so this works offline too.
 
+**Visuals:** one SVG renderer handles every visual type from Agent 2's v2.1
+server (concept map, flowchart, cycle, timeline, hierarchy, comparison, venn,
+chart, schematic, recap) with a layout per type, group colors with a legend,
+gold ★ for important nodes, dashed `?` for question nodes (click to expand
+the detail). Visuals are validated in the browser first; anything unusable
+falls back to the recap card. The old renderer drew everything through
+Mermaid's flowchart grammar and drew unknown types as flowcharts — that's
+why every graphic looked like a flowchart.
+
 **Not wired into the UI yet:** the on-device cue detector (`??`, ★,
 highlight → vocab) is built and evaluated (`npm run eval:cues`, results
 below), and the analysis client already sends `cues` and

@@ -1,53 +1,27 @@
 import { useMemo } from "react";
-import { SchematicSVG } from "./SchematicSVG";
+import { GraphSVG } from "./GraphSVG";
+import { ChartSVG } from "./ChartSVG";
+import { isRenderable } from "../visuals/layout";
 import type { Visual } from "../types";
 
-type Props = {
-  visual: Visual;
-};
+/** One SVG renderer for every visual type, with a layout per type. Anything
+ * unusable (bad ids, missing chart data) falls back to the recap text. */
+export function VisualRenderer({ visual }: { visual: Visual }) {
+  const ok = useMemo(() => isRenderable(visual), [visual]);
 
-/** Dispatches to the right graphic by visualType, falling back to the recap
- * text whenever a visual can't actually be rendered (e.g. an edge points at
- * a node id that isn't in this diagram). */
-export function VisualRenderer({ visual }: Props) {
-  const { visualType, nodes, edges } = visual;
-
-  const isUsable = useMemo(() => {
-    const ids = new Set(nodes.map((n) => n.id));
-    return edges.every((e) => ids.has(e.from) && ids.has(e.to));
-  }, [nodes, edges]);
-
-  if (visualType === "recap") {
+  if (visual.visualType === "recap" || !ok) {
     return (
-      <div className="visual-graphic">
-        <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>
-          Recap — no diagram for this card.
-        </p>
+      <div className="visual-graphic recap-card">
+        <span className="recap-glyph" aria-hidden="true">
+          {ok ? "✎" : "⚠︎"}
+        </span>
+        <p>{ok ? visual.recap : "This diagram couldn't be drawn — the recap above covers it."}</p>
       </div>
     );
   }
-
-  if (!isUsable) {
-    return (
-      <div className="visual-graphic">
-        <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>
-          This diagram couldn't be rendered; showing the recap above instead.
-        </p>
-      </div>
-    );
-  }
-
-  if (visualType === "schematic") {
-    return (
-      <div className="visual-graphic">
-        <SchematicSVG nodes={nodes} edges={edges} />
-      </div>
-    );
-  }
-
   return (
     <div className="visual-graphic">
-      <SchematicSVG nodes={nodes} edges={edges} />
+      {visual.visualType === "chart" && visual.chart ? <ChartSVG chart={visual.chart} /> : <GraphSVG visual={visual} />}
     </div>
   );
 }

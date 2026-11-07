@@ -331,3 +331,12 @@ kbd { font-family: ui-monospace, monospace; font-size: 0.8rem; background: var(-
 
 .replay-card { padding: 0.75rem !important; }
 .replay-card audio { height: 36px; }
+
+/* Visual renderer (all types) */
+.graph { width: 100%; }
+.graph-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; font-size: 0.75rem; color: var(--text-dim); margin-top: 0.4rem; }
+.graph-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0.3rem; vertical-align: -1px; }
+.graph-detail { font-size: 0.8rem; color: var(--text-dim); margin: 0.4rem 0 0; border-left: 3px solid var(--accent); padding-left: 0.5rem; }
+.recap-card { flex-direction: column; gap: 0.4rem; text-align: center; }
+.recap-card p { margin: 0; color: var(--text); line-height: 1.45; }
+.recap-glyph { font-size: 1.6rem; color: var(--accent); }
