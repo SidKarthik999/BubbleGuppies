@@ -42,7 +42,7 @@ export function HomeScreen({ notebooks, onAction, onReview, onNewNotebook, onImp
     <div className="screen home backdrop">
       <header className="glass topbar-glass">
         <span className="wordmark">
-          <span className="wordmark-dot" aria-hidden="true" />
+          <img className="wordmark-logo" src="/logo.png" alt="" aria-hidden="true" />
           Bubble Notes
         </span>
         <div className="glass chip segmented" role="tablist" aria-label="Filter notebooks">
