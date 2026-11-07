@@ -170,16 +170,13 @@ export function LectureScreen({ nb, session, sessionHere, handwriting, cues, exp
     return () => clearInterval(id);
   }, [zoneOut, phase]);
 
-  const modeRef = useRef(mode);
-  modeRef.current = mode;
+  // Writing never changes the layout: in split view you can keep writing on
+  // the notes side while the feed stays open. Leaving split is the student's
+  // choice (the mode switch, the divider, or "Back to notes").
   const onPenDown = useCallback(() => {
     lastInk.current = Date.now();
     handwriting.penActivity();
-    // Writing on the notes side shrinks the feed back to PiP.
-    if (modeRef.current === "split") {
-      setMode("notes");
-    }
-  }, [handwriting, setMode]);
+  }, [handwriting]);
 
   const clockNow = useCallback(() => (recording ? session.clock.elapsedSec() : null), [recording, session.clock]);
   const seekAvailable = sessionHere && phase === "ended" && !!session.recordingUrl;
@@ -207,7 +204,7 @@ export function LectureScreen({ nb, session, sessionHere, handwriting, cues, exp
       {mode === "split" && !splitHintSeen && (
         <div className="glass menu-tier hint-card">
           <Icon name="pen" size={18} />
-          <span>Writing here shrinks the feed back to picture-in-picture.</span>
+          <span>Keep writing here while the feed stays open.</span>
           <button className="btn small primary" onClick={() => setMode("notes")}>
             Back to notes
           </button>
