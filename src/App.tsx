@@ -199,6 +199,7 @@ export default function App() {
           onReview={(id) => void openReview(id)}
           onNewNotebook={() => setNewSheet(true)}
           onImport={(kind) => setImportSheet({ kind, notebookId: null })}
+          onDelete={(id) => void nb.deleteNotebook(id)}
           banner={nb.storageError ? <ErrorBanner kind="warn">Notes can't be saved on this device ({nb.storageError}).</ErrorBanner> : null}
         />
       )}

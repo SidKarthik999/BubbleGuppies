@@ -13,6 +13,7 @@ const PATHS = {
   redo: "M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3",
   more: "M5 12h.01M12 12h.01M19 12h.01",
   doc: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+  trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6",
   book: "M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11",
   keyboard: "M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8",
   plus: "M12 5v14M5 12h14",

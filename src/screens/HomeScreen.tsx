@@ -13,12 +13,14 @@ type Props = {
   onReview: (id: string) => void;
   onNewNotebook: () => void;
   onImport: (kind: "own-pdf" | "class-provided") => void;
+  /** Permanently deletes a notebook (the screen asks for confirmation first). */
+  onDelete: (id: string) => void;
   banner?: ReactNode;
 };
 
 const isToday = (ms: number | null) => ms != null && new Date(ms).toDateString() === new Date().toDateString();
 
-export function HomeScreen({ notebooks, onAction, onReview, onNewNotebook, onImport, banner }: Props) {
+export function HomeScreen({ notebooks, onAction, onReview, onNewNotebook, onImport, onDelete, banner }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -94,6 +96,17 @@ export function HomeScreen({ notebooks, onAction, onReview, onNewNotebook, onImp
                     { icon: "mic", label: "New lecture", sub: "Record and build the live feed", run: () => onAction(n.id, "lecture") },
                     { icon: "notes", label: "Problem set", sub: "Plain notebook, no recording", run: () => onAction(n.id, "problem-set") },
                     { icon: "doc", label: "Add PDF or notes", sub: "Slides, handouts, your PDFs", run: () => onAction(n.id, "import") },
+                    {
+                      icon: "trash",
+                      label: "Delete notebook",
+                      sub: "Removes its notes, PDFs and recordings",
+                      danger: true,
+                      run: () => {
+                        if (window.confirm(`Delete "${n.title}"? Its notes, PDFs, lectures and recordings will be removed from this device. This can't be undone.`)) {
+                          onDelete(n.id);
+                        }
+                      },
+                    },
                   ]}
                 />
               )}
@@ -167,7 +180,7 @@ export function NotebookCover({ n }: { n: Pick<NotebookSummary, "cover" | "cours
   );
 }
 
-type MenuItem = { icon: IconName; label: string; sub?: string; run: () => void };
+type MenuItem = { icon: IconName; label: string; sub?: string; danger?: boolean; run: () => void };
 
 /** Small menu attached to the object that opened it ("stays local to the object"). */
 function LocalMenu({ items, onClose, className = "" }: { items: MenuItem[]; onClose: () => void; className?: string }) {
@@ -193,7 +206,7 @@ function LocalMenu({ items, onClose, className = "" }: { items: MenuItem[]; onCl
         <button
           key={it.label}
           role="menuitem"
-          className="menu-item"
+          className={`menu-item ${it.danger ? "danger" : ""}`}
           onClick={() => {
             onClose();
             it.run();

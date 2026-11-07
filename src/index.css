@@ -164,6 +164,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .menu-item { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.6rem 0.65rem; border-radius: 14px; text-align: left; font-weight: 600; font-size: 0.92rem; cursor: pointer; }
 .menu-item:hover, .menu-item:focus-visible { background: rgba(91, 108, 242, 0.1); outline: none; }
 .menu-item.warn { color: var(--warn); }
+.menu-item.danger { color: #d64545; border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; margin-top: 0.2rem; }
+.menu-item.danger:hover, .menu-item.danger:focus-visible { background: rgba(214, 69, 69, 0.1); }
 .menu-item[aria-pressed="true"] { color: var(--peri-deep); }
 .menu-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--peri-soft); color: var(--peri-deep); flex-shrink: 0; }
 .menu-label { display: flex; flex-direction: column; }

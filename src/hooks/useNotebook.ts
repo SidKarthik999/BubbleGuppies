@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { NotebookStore } from "../ink/notebookStore";
 import { InkSession } from "../ink/inkSession";
 import {
@@ -11,10 +11,15 @@ import {
   type PageTemplate,
 } from "../ink/model";
 import {
+  blobIdsOf,
+  deleteBlob,
+  deleteNotebook as deleteStoredNotebook,
+  forgetLastNotebook,
   lastNotebookId,
   listNotebooks,
   loadBlob,
   loadNotebook,
+  recordingIdsOf,
   rememberLastNotebook,
   saveBlob,
   type NotebookSummary,
@@ -56,10 +61,11 @@ export function useNotebook() {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
   // The placeholder the store starts with is never saved: notebooks are made from the shelf.
-  const [placeholderId] = useState(() => store.notebook.id);
+  // A ref, because deleting the open notebook swaps in a fresh placeholder.
+  const placeholderId = useRef(store.notebook.id);
   const saveCurrent = useCallback(
-    () => (store.notebook.id === placeholderId ? Promise.resolve() : store.saveNow()),
-    [placeholderId, store]
+    () => (store.notebook.id === placeholderId.current ? Promise.resolve() : store.saveNow()),
+    [store]
   );
   useStoreVersion(store);
 
@@ -138,6 +144,31 @@ export function useNotebook() {
     [saveCurrent, session, store]
   );
 
+  /**
+   * Permanently deletes a notebook with its PDFs and lecture audio. If it is
+   * the open notebook, an unsaved blank one replaces it first so a pending
+   * autosave can't write it back.
+   */
+  const deleteNotebook = useCallback(
+    async (id: string) => {
+      const stored = await loadNotebook(id);
+      if (store.notebook.id === id) {
+        const blank = newNotebook("Untitled notes");
+        placeholderId.current = blank.id;
+        store.replaceNotebook(blank);
+        session.setSelection(null);
+      }
+      await deleteStoredNotebook(id);
+      forgetLastNotebook(id);
+      // PDFs are only ever attached to one notebook, so its blobs can go too,
+      // along with every lecture recording (not just the latest one).
+      const blobs = new Set([...(stored ? blobIdsOf(stored) : []), ...(await recordingIdsOf(id).catch(() => []))]);
+      await Promise.all([...blobs].map((b) => deleteBlob(b).catch(() => undefined)));
+      await refreshList();
+    },
+    [refreshList, session, store]
+  );
+
   const addPage = useCallback(
     (template?: PageTemplate) => {
       store.addPages([newPage({ kind: "template", template: template ?? store.notebook.paper ?? "lined" })]);
@@ -195,6 +226,7 @@ export function useNotebook() {
     refreshList,
     createNotebook,
     openNotebook,
+    deleteNotebook,
     addPage,
     importPdf,
     noteActivity,

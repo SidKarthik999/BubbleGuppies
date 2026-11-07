@@ -98,6 +98,36 @@ export async function listNotebooks(): Promise<NotebookSummary[]> {
 
 export const saveBlob = (id: string, blob: Blob) => tx(BLOBS, "readwrite", (s) => s.put(blob, id)).then(() => undefined);
 export const loadBlob = (id: string) => tx<Blob | undefined>(BLOBS, "readonly", (s) => s.get(id));
+export const deleteBlob = (id: string) => tx(BLOBS, "readwrite", (s) => s.delete(id)).then(() => undefined);
+
+/**
+ * Every lecture recording of a notebook. Recordings are saved as
+ * `audio-<notebookId>-<time>` and only the latest is referenced by the
+ * notebook, so earlier lectures' audio is found by key prefix.
+ */
+export async function recordingIdsOf(notebookId: string): Promise<string[]> {
+  const keys = await tx<IDBValidKey[]>(BLOBS, "readonly", (s) => s.getAllKeys());
+  const prefix = `audio-${notebookId}-`;
+  return keys.map(String).filter((k) => k.startsWith(prefix));
+}
+
+/** Blob ids a notebook owns: its PDFs and its lecture recording. */
+export function blobIdsOf(nb: Notebook): string[] {
+  const ids = new Set<string>();
+  for (const a of nb.attachments ?? []) ids.add(a.id);
+  for (const p of nb.pages) if (p.background.kind === "pdf") ids.add(p.background.fileId);
+  if (nb.audioBlobId) ids.add(nb.audioBlobId);
+  return [...ids];
+}
+
+/** Forgets the "reopen this notebook" pointer if it names `id`. */
+export function forgetLastNotebook(id: string): void {
+  try {
+    if (localStorage.getItem(LAST_KEY) === id) localStorage.removeItem(LAST_KEY);
+  } catch {
+    /* private mode — fine */
+  }
+}
 
 const LAST_KEY = "nova:lastNotebookId";
 export function rememberLastNotebook(id: string): void {
