@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { VisualRenderer } from "../../components/VisualRenderer";
 import { TranscriptPanel } from "../../components/TranscriptPanel";
 import { formatClock } from "../../lib/lectureClock";
 import type { Card, TranscriptSegment, VisualType } from "../../types";
-import type { CueRecord, NoteLine } from "../../ink/model";
+import type { CueRecord, NoteLine, Sketch } from "../../ink/model";
+import { CardPicture, type PicturePref } from "./CardPicture";
 import type { CuesApi } from "../../hooks/useCues";
 import { CueBadge, CueList } from "./CueList";
 
@@ -37,6 +37,10 @@ export type FeedData = {
   /** Symbol cues from the notes (??, ★, highlight / ==term==) and their answers. */
   cues: CueRecord[];
   cueActions: Pick<CuesApi, "provideText" | "dismiss" | "toggle">;
+  /** Anatomy Live sketches by card id, and whether cards show the sketch or the diagram. */
+  sketches: Record<string, Sketch>;
+  picture: PicturePref;
+  setPicture: (p: PicturePref) => void;
 };
 
 /** Transcript column appears once the panel is at least this wide (pt). */
@@ -95,7 +99,7 @@ export function FeedPanel({ data, autoExpanded, onTakeNotes, compact }: { data: 
             <h2 className="feed-title">{card.visual.topic}</h2>
             <p className="feed-summary">{card.visual.recap}</p>
             <div className="feed-visual">
-              <VisualRenderer visual={card.visual} />
+              <CardPicture visual={card.visual} sketch={data.sketches[card.id]} pref={data.picture} setPref={data.setPicture} />
             </div>
           </div>
         ) : (
@@ -162,7 +166,7 @@ export function FeedMini({ data }: { data: FeedData }) {
         <>
           <div className="feed-title mini">{card.visual.topic}</div>
           <div className="feed-visual mini">
-            <VisualRenderer visual={card.visual} />
+            <CardPicture visual={card.visual} sketch={data.sketches[card.id]} pref={data.picture} mini />
           </div>
         </>
       ) : (

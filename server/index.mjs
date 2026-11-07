@@ -8,6 +8,7 @@
 //   POST /api/analyze          transcript -> visual decision + cue answers
 //   POST /api/ink/transcribe   cropped ink PNG -> verbatim text
 //   POST /api/assist           problem-set hint grounded in materials and notes
+//   POST /api/draw             live sketch stream from ../anatomy-live (NDJSON)
 
 import http from "node:http";
 import { pathToFileURL } from "node:url";
@@ -17,6 +18,7 @@ import { readJson, sendError, sendJson } from "./lib/http.mjs";
 import { LIMITS } from "./lib/limits.mjs";
 import { handleAnalyze } from "./routes/analyze.mjs";
 import { handleAssist } from "./routes/assist.mjs";
+import { handleDraw } from "./routes/draw.mjs";
 import { handleTranscribe } from "./routes/transcribe.mjs";
 
 export { DEFAULT_MODEL, readConfig } from "./lib/config.mjs";
@@ -39,6 +41,9 @@ export function createServer({ config = readConfig(), log = console } = {}) {
       if (path === "/api/health") {
         if (req.method !== "GET" && req.method !== "HEAD") throw new ApiError(405, "METHOD_NOT_ALLOWED", "Use GET.");
         sendJson(res, 200, { ok: true });
+      } else if (path === "/api/draw") {
+        // Streams NDJSON itself (Anatomy Live sketches), so it isn't a JSON route.
+        await handleDraw(req, res, config, notes);
       } else if (ROUTES[path]) {
         if (req.method !== "POST") {
           req.resume();

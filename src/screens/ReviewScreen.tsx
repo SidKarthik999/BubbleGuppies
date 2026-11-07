@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/ui/Icon";
-import { VisualRenderer } from "../components/VisualRenderer";
+import { CardPicture, usePicturePref } from "./lecture/CardPicture";
+import { useSketches } from "../hooks/useSketches";
+import { useStoreVersion } from "../hooks/useNotebook";
+import type { NotebookStore } from "../ink/notebookStore";
 import { formatClock } from "../lib/lectureClock";
 import { VISUAL_LABELS } from "./lecture/FeedPanel";
 import type { Card, Segment } from "../types";
@@ -13,10 +16,14 @@ type Props = {
   audioUrl: string | null;
   onBack: () => void;
   onMyNotes: () => void;
+  /** Notebook store: holds saved Anatomy Live sketches and receives new ones. */
+  store: NotebookStore;
 };
 
 /** Replay a lecture along the timeline of visuals it generated (CONTEXT §3.5). */
-export function ReviewScreen({ title, courseCode, cards, transcript, audioUrl, onBack, onMyNotes }: Props) {
+export function ReviewScreen({ title, courseCode, cards, transcript, audioUrl, onBack, onMyNotes, store }: Props) {
+  useStoreVersion(store);
+  const [picture, setPicture] = usePicturePref();
   const sorted = useMemo(() => [...cards].sort((a, b) => a.visual.sourceStartSec - b.visual.sourceStartSec), [cards]);
   const [selectedId, setSelectedId] = useState<string | null>(sorted[0]?.id ?? null);
   const [position, setPosition] = useState(0);
@@ -33,6 +40,7 @@ export function ReviewScreen({ title, courseCode, cards, transcript, audioUrl, o
   const selected = sorted[selIndex] ?? null;
   const rangeStart = selected?.visual.sourceStartSec ?? 0;
   const rangeEnd = sorted[selIndex + 1]?.visual.sourceStartSec ?? Infinity;
+  useSketches({ store, wanted: [selected], enabled: picture === "sketch" });
   const inRange = (s: Segment) => s.startSec >= rangeStart && s.startSec < rangeEnd;
 
   // Keep the highlighted lines in view.
@@ -106,7 +114,7 @@ export function ReviewScreen({ title, courseCode, cards, transcript, audioUrl, o
                 <h2 className="feed-title">{selected.visual.topic}</h2>
                 <p className="feed-summary">{selected.visual.recap}</p>
                 <div className="feed-visual">
-                  <VisualRenderer visual={selected.visual} />
+                  <CardPicture visual={selected.visual} sketch={store.notebook.sketches?.[selected.id]} pref={picture} setPref={setPicture} />
                 </div>
               </>
             )}

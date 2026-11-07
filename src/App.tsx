@@ -190,6 +190,7 @@ export default function App() {
           audioUrl={reviewAudio}
           onBack={goHome}
           onMyNotes={() => setRoute({ name: "notebook", id: current.id })}
+          store={nb.store}
         />
       ) : (
         <HomeScreen

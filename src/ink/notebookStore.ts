@@ -4,7 +4,7 @@
 
 import { insertSorted } from "./geometry.ts";
 import { saveNotebook } from "./storage.ts";
-import type { CueRecord, NoteLine, Notebook, Page, Stroke, TextBox } from "./model.ts";
+import type { CueRecord, NoteLine, Notebook, Page, Sketch, Stroke, TextBox } from "./model.ts";
 import type { Card, Segment } from "../types";
 
 export type StoreEvent =
@@ -14,6 +14,7 @@ export type StoreEvent =
   | { type: "pages-changed" }
   | { type: "cues-changed" }
   | { type: "notes-changed" }
+  | { type: "sketches-changed" }
   | { type: "notebook-replaced" }
   | { type: "history-changed" }
   | { type: "saved"; at: number }
@@ -211,6 +212,18 @@ export class NotebookStore {
     if (after.length === before.length) return;
     this.notebook.noteLines = after;
     this.emit({ type: "notes-changed" });
+    this.dirty();
+  }
+
+  // ------------------------------------------------------------ sketches
+
+  /** Stores (or clears, with null) the Anatomy Live sketch for a feed card. */
+  setSketch(cardId: string, sketch: Sketch | null): void {
+    const next = { ...(this.notebook.sketches ?? {}) };
+    if (sketch) next[cardId] = sketch;
+    else delete next[cardId];
+    this.notebook.sketches = next;
+    this.emit({ type: "sketches-changed" });
     this.dirty();
   }
 

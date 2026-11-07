@@ -229,6 +229,19 @@ Create a notebook, notebook menu → New lecture → Start class → sample lect
 
 ---
 
+## Anatomy Live sketches (option B: the default picture)
+
+`anatomy-live/` (merged from upstream) turns a short prompt into a live 2D sketch: NDJSON drawing commands on an 800 × 480 canvas. It has built-in scenes (hand anatomy, jellyfish, gears, triangles, torque, circuits) and otherwise uses `anthropic/claude-haiku-5.5` through OpenRouter.
+
+- **Who decides what to draw:** the analysis API still decides *when* a new card starts and writes its topic and summary; it also answers cues. Anatomy Live then draws every card's picture from `"<topic>: <summary>"` (≤ 360 chars, plus up to 3 starred terms as "Emphasize: …").
+- **Server:** `POST /api/draw` on the same API (`server/routes/draw.mjs`). On first use it runs `anatomy-live/build.mjs` (its own build, output in the git-ignored `anatomy-live/dist`) and passes requests to that bundle unchanged. It uses the same `OPENROUTER_API_KEY`. Nothing in `anatomy-live/` was modified.
+- **Client:** `src/lib/drawClient.ts` (stream parser), `src/hooks/useSketches.ts` (sketches the live card and the viewed card; redraws when a card's topic changes), `src/components/SketchSVG.tsx` (renderer), `src/screens/lecture/CardPicture.tsx` (sketch by default, a **Sketch / Diagram** switch remembered per browser, diagram fallback). Sketches are saved in `Notebook.sketches` by card id, so the PiP, the feed and Lecture review share them without new calls.
+- **Fallback:** the analysis diagram shows (faded) until the first stroke arrives, and fully if the sketch fails. The reason is shown under the picture (no key, no credits, server down). A sketch cut short keeps its strokes and says it's incomplete.
+- **Cost and latency:** one extra Haiku call per card (~3 s to completion in testing; strokes start sooner). Sketches are only drawn for cards that are live or viewed while Sketch is selected.
+- **Verified (sample lecture, offline analysis + real `/api/draw`):** all four lecture cards were sketched live (16–25 strokes each, with takeaway notes); the Diagram switch toggles both ways; review reuses saved sketches. Not verified: the no-key and out-of-credit error paths in the browser.
+
+---
+
 # Part 3 — Engineering handoff
 
 ## What the project is (engineering view)

@@ -11,6 +11,8 @@ import { PipWindow } from "./PipWindow";
 import { SplitView } from "./SplitView";
 import type { Card } from "../../types";
 import type { CuesApi } from "../../hooks/useCues";
+import { useSketches } from "../../hooks/useSketches";
+import { usePicturePref } from "./CardPicture";
 
 export type LectureMode = "notes" | "split" | "feed";
 
@@ -89,6 +91,8 @@ export function LectureScreen({ nb, session, sessionHere, handwriting, cues, exp
   const phase = sessionHere ? session.phase : "idle";
   const recording = phase === "running" || phase === "paused";
 
+  const [picture, setPicture] = usePicturePref();
+
   // Feed data: the live session when it belongs here, otherwise the lecture saved with this notebook.
   const [savedViewing, setSavedViewing] = useState<string | null>(null);
   const savedCards: Card[] = notebook.cards ?? [];
@@ -109,6 +113,9 @@ export function LectureScreen({ nb, session, sessionHere, handwriting, cues, exp
         error: session.analysisError?.message ?? null,
         cues: notebook.cues ?? [],
         cueActions: cues,
+        sketches: notebook.sketches ?? {},
+        picture,
+        setPicture,
       };
     }
     const latest = savedCards[savedCards.length - 1] ?? null;
@@ -127,8 +134,14 @@ export function LectureScreen({ nb, session, sessionHere, handwriting, cues, exp
       live: false,
       cues: notebook.cues ?? [],
       cueActions: cues,
+      sketches: notebook.sketches ?? {},
+      picture,
+      setPicture,
     };
-  }, [sessionHere, session, savedCards, savedViewing, notebook.transcript, notebook.cues, nb.store, handwriting.editLine, cues]);
+  }, [sessionHere, session, savedCards, savedViewing, notebook.transcript, notebook.cues, notebook.sketches, nb.store, handwriting.editLine, cues, picture, setPicture]);
+
+  // Option B: Anatomy Live sketches the live card and the card being viewed.
+  useSketches({ store: nb.store, wanted: [feed.latestCard, feed.viewingCard], enabled: picture === "sketch" });
 
   const hasFeed = recording || feed.cards.length > 0 || feed.cues.length > 0;
 

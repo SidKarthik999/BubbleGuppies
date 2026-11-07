@@ -101,6 +101,25 @@ export type Notebook = {
   problemSetCount?: number;
   /** Epoch ms of the last recorded lecture (drives the TODAY pill). */
   lastLectureAt?: number;
+  /** Anatomy Live sketches, keyed by feed card id. */
+  sketches?: Record<string, Sketch>;
+};
+
+/** One Anatomy Live drawing command, e.g. ["line", x1, y1, x2, y2, "mint"] on an 800 × 480 canvas. */
+export type SketchCommand = (string | number | (string | number)[] | (string | number)[][])[];
+
+export type Sketch = {
+  cardId: string;
+  /** The card topic the sketch was drawn for (a new topic redraws it). */
+  topic: string;
+  prompt: string;
+  commands: SketchCommand[];
+  note?: string;
+  status: "drawing" | "done" | "error";
+  error?: string;
+  /** "calculated" / "illustrated" for built-in scenes; review result for model sketches. */
+  source?: string;
+  updatedAt: number;
 };
 
 export type CoverColor = "sage" | "classic" | "forest" | "butter" | "blush" | "periwinkle";
