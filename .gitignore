@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# env files are local/secret except the tracked example
+.env
+.env.*
+!server/.env.example
+
+.DS_Store
+*.log
+npm-debug.log*
