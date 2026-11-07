@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { MermaidDiagram } from "./MermaidDiagram";
 import { SchematicSVG } from "./SchematicSVG";
 import type { Visual } from "../types";
 
@@ -48,7 +47,7 @@ export function VisualRenderer({ visual }: Props) {
 
   return (
     <div className="visual-graphic">
-      <MermaidDiagram nodes={nodes} edges={edges} direction={visualType === "flowchart" ? "TD" : "LR"} />
+      <SchematicSVG nodes={nodes} edges={edges} />
     </div>
   );
 }
