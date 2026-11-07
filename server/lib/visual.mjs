@@ -165,13 +165,23 @@ export function finalizeVisual(raw, { sourceStartSec, sourceNumbers }) {
   let chart;
   if (type === "chart") chart = normalizeOutputChart(raw.chart, sourceNumbers);
 
-  const ok = type === "chart" ? chart !== null : TYPE_RULES[type](nodes, edges);
+  // Repair before judging: a comparison's edges link counterparts across
+  // groups, so same-group edges (seen in live runs, e.g. "In-Order" → "visits
+  // left first") are dropped rather than costing the whole comparison layout.
+  const typeEdges = type === "comparison" ? crossGroupEdges(nodes, edges) : edges;
+
+  const ok = type === "chart" ? chart !== null : TYPE_RULES[type](nodes, typeEdges);
   if (ok) {
-    const visual = { ...base, visualType: type, nodes: limitGroups(type, nodes), edges };
+    const visual = { ...base, visualType: type, nodes: limitGroups(type, nodes), edges: typeEdges };
     if (chart) visual.chart = chart;
     return { visual };
   }
   return { visual: downgrade(base, nodes, edges), downgradedFrom: type };
+}
+
+function crossGroupEdges(nodes, edges) {
+  const groupOf = new Map(nodes.map((n) => [n.id, n.group]));
+  return edges.filter((e) => groupOf.get(e.from) !== groupOf.get(e.to));
 }
 
 function downgrade(base, nodes, edges) {

@@ -114,7 +114,7 @@ Model output is strict. Over-long text is clipped instead of rejected. Labels ke
 | cycle | ≥ 3 nodes, edges = nodes, each node has exactly one edge in and one out, and following edges visits every node and returns to the start. |
 | timeline | Edges are exactly `nodes[i] → nodes[i+1]` in node order. |
 | hierarchy | Edges = nodes − 1, exactly one root, every other node has one parent, every node is reachable from the root, and there are no cycles. |
-| comparison | Every node has a group, there are 2–3 groups, and edges (if any) link nodes in different groups. |
+| comparison | Every node has a group and there are 2–3 groups. Edges inside one group are dropped first (a repair, not a downgrade); the remaining edges link counterparts. |
 | venn | Every node's group is `A`, `B`, or `both`, and all three are used. |
 | chart | `chart.kind` is `bar` or `line`, with 2–12 points of finite numbers and non-empty labels. **Every value must appear as digits in the segments or materials.** |
 | concept-map, schematic | ≥ 2 nodes and ≥ 1 edge. Edge labels are requested but not required. |
@@ -167,7 +167,7 @@ A v1 browser sends its on-screen visual back as `currentVisual`. That input may 
 node --test 'server/test/*.test.mjs'
 ```
 
-The quotes matter: Node 22 expands the glob itself, and `node --test server/test/` (a directory) does not work on Node 22. Running this gives 149 tests in 5 files, each starting its own stub upstream:
+The quotes matter: Node 22 expands the glob itself, and `node --test server/test/` (a directory) does not work on Node 22. Running this gives 150 tests in 5 files, each starting its own stub upstream:
 
 - **core**: routes, error shape, 19 malformed analyze inputs, the 256 KB cap, v1-sized `currentVisual` accepted, append, replace, skip, recap, label clipping, `<data>` breakout, 10 invalid model outputs, 9 upstream failures (including timeout), and no key or upstream message leaked.
 - **transcribe**: bad base64, bad length, `data:` prefix, non-PNG, oversized width and height, zero size, bad IHDR CRC, over 1.5 MB, bad or missing purpose, context over 500, the 2 MB body cap, instructions in the ink returned verbatim, `tex` for math, low confidence on empty output, timeout → 502, missing key → 503.
@@ -257,5 +257,7 @@ The handwriting tests used Bradley Hand rendered with PIL, not real stylus ink.
 | Analyze + materials + `allowWeb`, 2 cues not in the materials | Web answers with 2–3 annotation citations each, `sourceMode:"web"` (2 runs). An earlier run before the prose redesign got an upstream 429 on the web call and fell back correctly to an unverified pass-1 answer. | 9.2 s, 11.3 s |
 | Assist, Gibbs problem with an equation sheet | Hint without the answer; equation cited to the equation sheet; `sourceMode:"materials"` | 3.0 s |
 | Assist + `allowWeb`, Arrhenius problem not in materials | Hint names the two-point Arrhenius form without solving; equation and citation from a web annotation (britannica.com); `sourceMode:"web"` | 12.0 s |
+
+In the integrated app (browser + this server, sample lecture, real API), 9 of 9 requests returned 200 in 2.2–6.1 s with no downgrades, after the comparison repair above. Before it, 3 of 8 live responses were downgraded from comparison because the model also chained nodes within each group.
 
 Requests with several cues take longer than the 4 s p50 goal because the answers add output tokens. Web requests take 9–12 s, within the 20 s budget.

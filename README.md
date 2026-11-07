@@ -29,7 +29,7 @@ npm run api   # analysis server (server/index.mjs)
 and set `OPENROUTER_API_KEY` (`server/.env` is gitignored). Without a key the
 API still runs but `/api/analyze` returns `503 API_KEY_MISSING` — the web app
 stays usable (recording + transcript) regardless. See `server/README.md` for
-the API's own docs and offline tests (`node server/test/run.mjs`).
+the API's own docs and offline tests (`node --test 'server/test/*.test.mjs'`).
 
 ## Demo without the API
 
@@ -131,5 +131,6 @@ and 0/100 pages of ordinary writing. Drop real samples in
 
 - Browser live speech recognition is Chrome-desktop-only; other browsers
   fall back to recording-only with a clear banner.
-- Diagram responses from the real API take ~9 s; the client keeps recording
+- Diagram responses from the real API take about 2–6 s (measured 2026-11-07 with
+  the v2.1 server; several note cues or the web fallback can take up to ~12 s); the client keeps recording
   and coalesces new transcript while a request is in flight.

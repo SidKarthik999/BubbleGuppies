@@ -80,6 +80,20 @@ test("hierarchy containing a cycle is downgraded", async () => {
   assert.notEqual(v.visualType, "hierarchy");
 });
 
+test("comparison with same-group edges is repaired (edges dropped), not downgraded", async () => {
+  // Shape seen live: grouped correctly, plus chain edges inside each group.
+  const v = await run({
+    visualType: "comparison",
+    nodes: [
+      n("n1", "In-Order Traversal", { group: "In-Order" }), n("n2", "Left, Root, Right", { group: "In-Order" }),
+      n("n4", "Pre-Order Traversal", { group: "Pre-Order" }), n("n5", "Root, Left, Right", { group: "Pre-Order" }),
+    ],
+    edges: [e("n1", "n2", "order"), e("n4", "n5", "order"), e("n2", "n5", "contrasts sequence")],
+  });
+  assert.equal(v.visualType, "comparison");
+  assert.deepEqual(v.edges, [e("n2", "n5", "contrasts sequence")]);
+});
+
 test("comparison with 4 groups is downgraded", async () => {
   const v = await run({ visualType: "comparison", nodes: ["A", "B", "C", "D"].map((g) => n(g, g, { group: g })), edges: [e("A", "B")] });
   assert.equal(v.visualType, "concept-map");
