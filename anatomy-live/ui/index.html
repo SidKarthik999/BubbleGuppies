@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Turn a short prompt into a live technical sketch.">
+  <title>Anatomy Live</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main class="studio">
+    <header class="masthead">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span> Anatomy <span>Live</span></div>
+      <span class="engine"><span aria-hidden="true"></span> Claude Haiku 5.5</span>
+    </header>
+    <section class="intro" aria-labelledby="studio-title">
+      <p class="eyebrow">2D drawing studio</p>
+      <h1 id="studio-title">Ideas, drawn live.</h1>
+      <p>Type any word, phrase, or idea. Watch it take shape.</p>
+    </section>
+    <form class="prompt" id="prompt-form">
+      <label class="visually-hidden" for="prompt">Describe a diagram</label>
+      <input id="prompt" name="prompt" autocomplete="off" maxlength="360" placeholder="Try jellyfish, a gearbox, or how clouds form" required>
+      <button class="draw" id="draw" type="submit">Draw <span aria-hidden="true">↗</span></button>
+      <button class="stop" id="stop" type="button" hidden>Stop</button>
+    </form>
+    <div class="samples" aria-label="Sample sketches">
+      <span>Samples</span>
+      <button type="button" data-sample="pythagorean">Pythagorean theorem</button>
+      <button type="button" data-sample="torque">Torque lever</button>
+      <button type="button" data-sample="flow">Water cycle</button>
+    </div>
+    <section class="board" aria-label="Drawing board" aria-busy="false">
+      <div class="board-top">
+        <span id="drawing-title">Pythagorean theorem</span>
+        <span id="mode">Sample sketch</span>
+      </div>
+      <div class="paper">
+        <svg id="canvas" viewBox="0 0 800 480" role="img" aria-label="Pythagorean theorem"></svg>
+      </div>
+      <div class="board-bottom">
+        <span id="status" role="status">Sample ready</span>
+        <span id="timing"></span>
+      </div>
+    </section>
+    <p class="takeaway" id="takeaway"></p>
+  </main>
+</body>
+</html>
