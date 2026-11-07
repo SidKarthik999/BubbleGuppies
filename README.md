@@ -1,7 +1,8 @@
-# NOVA — Lecture Study Guide Prototype
+# Bubble Notes (formerly NOVA): Lecture Notes Prototype
 
-A desktop-first prototype: a student presses Record and follows a study
-guide that takes shape as the lecture progresses. This repo is split
+A web prototype of Bubble Notes, an iPad-style note-taking app: a student
+handwrites notes while a live visual feed builds from the lecture. The
+product/UI spec and handoff notes are in [`HANDOFF.md`](HANDOFF.md). This repo is split
 between two owners working from the same integration contract:
 
 - **Agent 1 (this app)** — root scaffold, `src/`, `public/`: recording,
@@ -36,9 +37,10 @@ the API's own docs and offline tests (`node --test 'server/test/*.test.mjs'`).
 The app ships with a deterministic **offline demo**: a timed sample
 transcript (binary search trees → tree traversal → graphs, two topic
 changes) paired with fixture responses covering all four visual types
-(concept-map, flowchart, schematic, recap). From the top bar, set
-**Source: Sample transcript** and **Analysis: Offline demo (fixtures)**,
-then press **Start sample** — no backend required.
+(concept-map, flowchart, schematic, recap). Create a notebook, tap it →
+**New lecture**, and press **Begin lecture session**. Under **Prototype
+options** in that sheet, the defaults are **Sample lecture** and **Offline
+demo**, so no backend is required.
 
 Live mic text and the sample transcript are routed through the exact same
 transcript/timeline/analysis code (`src/hooks/useLectureSession.ts`), so
@@ -63,24 +65,19 @@ src/
     useRecorder.ts           MediaRecorder: start/pause/resume/stop, mic release
     useSpeechRecognition.ts  live transcription, auto-restarts on unexpected stops
     useLectureSession.ts     orchestrates the above into one session
-  components/                UI: recording controls, transcript panel, visual
-                              renderer (SVG), timeline, review
+  screens/                   Home shelf, sheets, lecture (PiP / split / feed), review
+  components/                notebook + ink toolbar, transcript panel, visual
+                              renderer (SVG), icons, glass filter
 server/
   .env.example                tracked; copy to .env (gitignored) for a real key
 ```
 
 ## v2.1 — Notes (handwriting)
 
-The app opens in **Notes** view: a notebook you write in, with the live
-study-guide visual, timeline, and a collapsible transcript beside it. The
-original layout is still under **Guide**. Recording, the lecture clock, the
-timeline, **Back to live**, review, and the offline demo all work as before
-in both views.
-
-**Layout at 1280 px:** notebook column (flexible, ≈900 px — a full 816 px
-page at 100% zoom) + a 380 px side column (recording player after a lecture,
-live visual, timeline, collapsible transcript). Chosen so the page is never
-squeezed while the visual stays visible.
+The app opens on the **Notebooks** shelf. Inside a notebook, the live feed
+shows as a picture-in-picture window (**Notes**), an adjustable **Split**,
+or full screen (**Feed**). See `HANDOFF.md` Part 2 for where each screen
+lives in `src/screens/`.
 
 **What works**
 

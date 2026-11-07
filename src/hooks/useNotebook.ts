@@ -1,8 +1,24 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { NotebookStore } from "../ink/notebookStore";
 import { InkSession } from "../ink/inkSession";
-import { newId, newNotebook, newPage, type Notebook, type PageTemplate } from "../ink/model";
-import { lastNotebookId, listNotebooks, loadBlob, loadNotebook, rememberLastNotebook, saveBlob } from "../ink/storage";
+import {
+  newId,
+  newNotebook,
+  newPage,
+  type AttachmentKind,
+  type CoverColor,
+  type Notebook,
+  type PageTemplate,
+} from "../ink/model";
+import {
+  lastNotebookId,
+  listNotebooks,
+  loadBlob,
+  loadNotebook,
+  rememberLastNotebook,
+  saveBlob,
+  type NotebookSummary,
+} from "../ink/storage";
 
 /** Fills fields added after a notebook was first saved. */
 function migrate(nb: Notebook): Notebook {
@@ -13,6 +29,7 @@ function migrate(nb: Notebook): Notebook {
     cards: nb.cards ?? [],
     audioBlobId: nb.audioBlobId ?? null,
     dismissedSymbolIds: nb.dismissedSymbolIds ?? [],
+    attachments: nb.attachments ?? [],
     pages: nb.pages.map((p) => ({ ...p, textBoxes: p.textBoxes ?? [] })),
   };
 }
@@ -25,16 +42,33 @@ export function useSessionVersion(session: InkSession): number {
   return useSyncExternalStore(session.subscribe, session.getVersion);
 }
 
+export type NewNotebookInput = {
+  name: string;
+  courseCode: string;
+  cover: CoverColor;
+  paper: PageTemplate;
+};
+
 export function useNotebook() {
   const [store] = useState(() => new NotebookStore(newNotebook("Untitled notes")));
   const [session] = useState(() => new InkSession());
   const [ready, setReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [notebooks, setNotebooks] = useState<{ id: string; title: string; updatedAt: number; sample?: boolean }[]>([]);
+  const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
+  // The placeholder the store starts with is never saved: notebooks are made from the shelf.
+  const [placeholderId] = useState(() => store.notebook.id);
+  const saveCurrent = useCallback(
+    () => (store.notebook.id === placeholderId ? Promise.resolve() : store.saveNow()),
+    [placeholderId, store]
+  );
   useStoreVersion(store);
 
-  const refreshList = useCallback(() => {
-    listNotebooks().then(setNotebooks).catch(() => undefined);
+  const refreshList = useCallback(async () => {
+    try {
+      setNotebooks(await listNotebooks());
+    } catch {
+      /* storage unavailable: the banner covers it */
+    }
   }, []);
 
   useEffect(() => {
@@ -44,14 +78,12 @@ export function useNotebook() {
         const id = lastNotebookId();
         const nb = id ? await loadNotebook(id) : undefined;
         if (!cancelled && nb) store.replaceNotebook(migrate(nb));
-        else await store.saveNow();
       } catch (err) {
         if (!cancelled) setStorageError(err instanceof Error ? err.message : "Local storage unavailable");
       }
       if (!cancelled) {
-        rememberLastNotebook(store.notebook.id);
         setReady(true);
-        refreshList();
+        void refreshList();
       }
     })();
     return () => {
@@ -63,53 +95,86 @@ export function useNotebook() {
     () =>
       store.subscribe((e) => {
         if (e.type === "save-failed") setStorageError(e.message);
-        if (e.type === "saved") setStorageError(null);
+        if (e.type === "saved") {
+          setStorageError(null);
+          void refreshList();
+        }
       }),
-    [store]
+    [store, refreshList]
   );
 
+  /** Creates a notebook from the New notebook sheet and makes it current. */
   const createNotebook = useCallback(
-    async (nb: Notebook = newNotebook(`Notes — ${new Date().toLocaleString()}`)) => {
-      await store.saveNow();
+    async (input: NewNotebookInput) => {
+      await saveCurrent();
+      const nb = newNotebook(input.name.trim());
+      nb.courseCode = input.courseCode.trim();
+      nb.cover = input.cover;
+      nb.paper = input.paper;
+      nb.attachments = [];
+      nb.pages = [newPage({ kind: "template", template: input.paper })];
       store.replaceNotebook(nb);
       session.setSelection(null);
       rememberLastNotebook(nb.id);
       await store.saveNow();
-      refreshList();
+      await refreshList();
+      return nb.id;
     },
-    [refreshList, session, store]
+    [refreshList, saveCurrent, session, store]
   );
 
+  /** Loads a notebook into the store (no-op when it is already current). */
   const openNotebook = useCallback(
-    async (id: string) => {
-      await store.saveNow();
+    async (id: string): Promise<boolean> => {
+      if (store.notebook.id === id) return true;
+      await saveCurrent();
       const nb = await loadNotebook(id);
-      if (!nb) return;
+      if (!nb) return false;
       store.replaceNotebook(migrate(nb));
       session.setSelection(null);
       rememberLastNotebook(id);
+      return true;
     },
-    [session, store]
+    [saveCurrent, session, store]
   );
 
   const addPage = useCallback(
-    (template: PageTemplate) => {
-      store.addPages([newPage({ kind: "template", template })]);
+    (template?: PageTemplate) => {
+      store.addPages([newPage({ kind: "template", template: template ?? store.notebook.paper ?? "lined" })]);
     },
     [store]
   );
 
-  /** Imports a PDF: every page becomes a notebook page with the PDF as its background. */
+  /** Imports a PDF into the current notebook: every page becomes a notebook page with the PDF as its background. */
   const importPdf = useCallback(
-    async (file: File) => {
+    async (file: File, kind: AttachmentKind = "own-pdf") => {
       const { loadPdf, pdfPageSizes } = await import("../ink/pdf");
       const fileId = newId("pdf");
       await saveBlob(fileId, file);
       const doc = await loadPdf(fileId, () => file.arrayBuffer());
       const sizes = await pdfPageSizes(doc);
+      store.notebook.attachments = [
+        ...(store.notebook.attachments ?? []),
+        { id: fileId, kind, fileName: file.name, pageCount: sizes.length, addedAt: Date.now() },
+      ];
       store.addPages(
         sizes.map((s, i) => newPage({ kind: "pdf", fileId, fileName: file.name, pageIndex: i }, s.width, s.height))
       );
+    },
+    [store]
+  );
+
+  /** Bumps the shelf counters ("12 lectures · 4 problem sets"). */
+  const noteActivity = useCallback(
+    (what: "lecture" | "problem-set") => {
+      const nb = store.notebook;
+      if (what === "lecture") {
+        nb.lectureCount = (nb.lectureCount ?? 0) + 1;
+        nb.lastLectureAt = Date.now();
+      } else {
+        nb.problemSetCount = (nb.problemSetCount ?? 0) + 1;
+      }
+      void store.saveNow();
     },
     [store]
   );
@@ -121,7 +186,20 @@ export function useNotebook() {
     return blob ? URL.createObjectURL(blob) : null;
   }, [store]);
 
-  return { store, session, ready, storageError, notebooks, refreshList, createNotebook, openNotebook, addPage, importPdf, loadAudio };
+  return {
+    store,
+    session,
+    ready,
+    storageError,
+    notebooks,
+    refreshList,
+    createNotebook,
+    openNotebook,
+    addPage,
+    importPdf,
+    noteActivity,
+    loadAudio,
+  };
 }
 
 export type NotebookApi = ReturnType<typeof useNotebook>;

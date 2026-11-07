@@ -9,7 +9,7 @@
 // order at the same simulated times.
 
 import type { Analyzer } from "./analyzeClient";
-import type { AnalyzeResponse, Visual } from "../types";
+import type { AnalyzeResponse, CueAnswer, Visual } from "../types";
 
 const bstConceptMap: Visual = {
   topic: "Binary Search Trees",
@@ -117,6 +117,63 @@ function offlineNotesResponse(req: Parameters<Analyzer>[0], seen: string[]): Ana
   return req.currentVisual?.topic === NOTES_TOPIC ? { action: "replace", visual } : { action: "append", visual };
 }
 
+// ---------------------------------------------------------------- cue answers
+
+const words = (s: string) => new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
+
+/** The node whose label shares the most words with the cue text. */
+function matchNode(visual: Visual, text: string): string | null {
+  const w = words(text);
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const n of visual.nodes) {
+    const score = [...words(n.label)].filter((x) => w.has(x)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = n.id;
+    }
+  }
+  return best;
+}
+
+/**
+ * Offline stand-in for cue answers: a deterministic answer per cue, and the
+ * matching node of the current visual gets the cue's emphasis (a "replace").
+ * Answers are marked unverified because nothing real was looked up.
+ */
+function withCueAnswers(res: AnalyzeResponse, req: Parameters<Analyzer>[0]): AnalyzeResponse {
+  const cues = req.cues ?? [];
+  if (cues.length === 0) return res;
+  const cueAnswers: CueAnswer[] = cues.map((c) => ({
+    cueId: c.id,
+    kind: c.kind,
+    title: c.kind === "question" ? `Q: ${c.text}` : c.kind === "vocab" ? c.text : `Key idea: ${c.text}`,
+    body:
+      c.kind === "question"
+        ? `Offline demo answer. With the real API, this explains "${c.text}" using what the lecturer said, and the related diagram node is marked with a "?".`
+        : c.kind === "vocab"
+          ? `Offline demo definition. With the real API, this is a one-line definition of "${c.text}" grounded in the lecture.`
+          : `Starred${c.weight && c.weight > 1 ? ` ×${c.weight}` : ""}. The matching idea is emphasized in the diagram. With the real API, this says why it matters.`,
+    citations: [],
+    unverified: true,
+  }));
+  let out: AnalyzeResponse = { ...res, cueAnswers };
+  const base = res.action !== "skip" ? res.visual : req.currentVisual;
+  if (base) {
+    const emph = new Map<string, "important" | "question">();
+    for (const c of cues) {
+      if (c.kind === "vocab") continue;
+      const id = matchNode(base, c.text);
+      if (id) emph.set(id, c.kind === "question" ? "question" : "important");
+    }
+    if (emph.size) {
+      const visual = { ...base, nodes: base.nodes.map((n) => (emph.has(n.id) ? { ...n, emphasis: emph.get(n.id) } : n)) };
+      out = res.action === "append" ? { action: "append", visual, cueAnswers } : { action: "replace", visual, cueAnswers };
+    }
+  }
+  return out;
+}
+
 export function createOfflineAnalyzer(): Analyzer {
   const notesSeen: string[] = [];
   // A trigger fires when its segment appears anywhere in a batch (batches
@@ -124,7 +181,7 @@ export function createOfflineAnalyzer(): Analyzer {
   const fired = new Set<string>();
   return (req) => {
     if (req.segments.length > 0 && req.segments.every((s) => s.id.startsWith("note-"))) {
-      const res = offlineNotesResponse(req, notesSeen);
+      const res = withCueAnswers(offlineNotesResponse(req, notesSeen), req);
       return new Promise((resolve) => setTimeout(() => resolve(res), OFFLINE_LATENCY_MS));
     }
     let response: AnalyzeResponse = { action: "skip" };
@@ -137,6 +194,7 @@ export function createOfflineAnalyzer(): Analyzer {
     }
     // A replace only makes sense when there is a current visual.
     if (response.action === "replace" && !req.currentVisual) response = { ...response, action: "append" };
+    response = withCueAnswers(response, req);
     return new Promise((resolve) => {
       setTimeout(() => resolve(response), OFFLINE_LATENCY_MS);
     });

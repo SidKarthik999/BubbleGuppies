@@ -18,6 +18,19 @@ export function drawTemplate(ctx: CanvasRenderingContext2D, template: PageTempla
     ctx.moveTo(72.5, 0);
     ctx.lineTo(72.5, h);
     ctx.stroke();
+  } else if (template === "dotted") {
+    // Bubble Notes paper: warm off-white with a 22 pt dot grid.
+    const step = 22;
+    ctx.fillStyle = "#fbfaf6";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#cfd3e6";
+    for (let y = step; y < h; y += step) {
+      for (let x = step; x < w; x += step) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   } else if (template === "grid") {
     const step = 24;
     ctx.strokeStyle = "#e2e8f0";

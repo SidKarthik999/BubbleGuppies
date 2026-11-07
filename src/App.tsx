@@ -1,202 +1,234 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCues, type CuesApi } from "./hooks/useCues";
 import { useLectureSession } from "./hooks/useLectureSession";
 import { useNotebook, useStoreVersion } from "./hooks/useNotebook";
 import { useHandwriting } from "./hooks/useHandwriting";
-import { RecordControls } from "./components/RecordControls";
-import { ModeToggle } from "./components/ModeToggle";
 import { ErrorBanner } from "./components/ErrorBanner";
-import { BackToLiveBanner } from "./components/BackToLiveBanner";
-import { MainPanel } from "./components/MainPanel";
-import { TranscriptPanel } from "./components/TranscriptPanel";
-import { Timeline } from "./components/Timeline";
-import { ReviewView } from "./components/ReviewView";
-import { NotebookView } from "./components/notebook/NotebookView";
+import { HomeScreen, type NotebookAction } from "./screens/HomeScreen";
+import { ImportSheet, NewNotebookSheet, StartClassModal, type StartClassChoice } from "./screens/Sheets";
+import { LectureScreen } from "./screens/lecture/LectureScreen";
+import { ReviewScreen } from "./screens/ReviewScreen";
+import { GlassFilters } from "./components/ui/GlassFilters";
+import type { AttachmentKind } from "./ink/model";
+import { saveBlob } from "./ink/storage";
+import type { AnalysisBackend, SessionSource } from "./types";
 
-type View = "notes" | "guide";
+type Route = { name: "home" } | { name: "notebook"; id: string } | { name: "review"; id: string };
 
 export default function App() {
-  const session = useLectureSession();
+  // Cue answers arrive through the session; the cue hook (below) stores them.
+  const cuesRef = useRef<CuesApi | null>(null);
+  const session = useLectureSession({ onCueAnswers: (answers) => cuesRef.current?.applyAnswers(answers) });
   const nb = useNotebook();
-  const [view, setView] = useState<View>("notes");
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  // Handwriting -> text -> the same analysis pipeline as the lecture transcript.
-  const handwriting = useHandwriting(nb.store, session.submitNoteSegments);
   useStoreVersion(nb.store);
-  const noteLines = nb.store.noteLines();
-  const {
-    source,
-    setSource,
-    backend,
-    setBackend,
-    phase,
-    canChangeMode,
-    startSession,
-    pauseSession,
-    resumeSession,
-    stopSession,
-    resetSession,
-    timerSec,
-    recorderState,
-    recorderError,
-    recordingUrl,
-    transcriptionSupport,
-    transcriptionError,
-    interimText,
-    transcript,
-    cards,
-    latestCard,
-    viewingCard,
-    currentVisualForDisplay,
-    isViewingHistory,
-    viewCard,
-    backToLive,
-    analysisError,
-    dismissAnalysisError,
-    clock,
-  } = session;
+  const handwriting = useHandwriting(nb.store, session.submitNoteSegments);
+  const cues = useCues({
+    store: nb.store,
+    submitCues: session.submitCues,
+    clockNow: () => (session.phase === "running" || session.phase === "paused" ? session.clock.elapsedSec() : null),
+    readingEnabled: handwriting.enabled && handwriting.status.state !== "error",
+  });
+  cuesRef.current = cues;
 
-  // Ink is stamped with the lecture clock only while a lecture is running/paused.
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
-  const clockNow = useCallback(
-    () => (phaseRef.current === "running" || phaseRef.current === "paused" ? clock.elapsedSec() : null),
-    [clock]
+  const [route, setRoute] = useState<Route>({ name: "home" });
+  const [newSheet, setNewSheet] = useState(false);
+  const [importSheet, setImportSheet] = useState<{ kind: AttachmentKind; notebookId: string | null } | null>(null);
+  const [startPrompt, setStartPrompt] = useState(false);
+  const [expandOnIdle, setExpandOnIdle] = useState(true);
+  /** Notebook the lecture session (running or just ended) belongs to. */
+  const [sessionNotebookId, setSessionNotebookId] = useState<string | null>(null);
+  const [startRequest, setStartRequest] = useState<{ source: SessionSource; backend: AnalysisBackend } | null>(null);
+  const [reviewAudio, setReviewAudio] = useState<string | null>(null);
+
+  const { phase, transcript, cards } = session;
+  const lectureActive = phase === "running" || phase === "paused";
+
+  // setSource/setBackend are state updates; start only once the session sees the new values.
+  useEffect(() => {
+    if (!startRequest) return;
+    if (session.source !== startRequest.source) return session.setSource(startRequest.source);
+    if (session.backend !== startRequest.backend) return session.setBackend(startRequest.backend);
+    setStartRequest(null);
+    void session.startSession();
+  }, [startRequest, session]);
+
+  // Save the lecture (transcript + visuals) with its notebook when it ends.
+  useEffect(() => {
+    if (phase === "ended" && sessionNotebookId && nb.store.notebook.id === sessionNotebookId) {
+      nb.store.saveSession(transcript, cards, null);
+    }
+  }, [phase, transcript, cards, nb.store, sessionNotebookId]);
+
+  // Keep the recording too, so Lecture review can play it after a reload.
+  const recordingUrl = session.recordingUrl;
+  useEffect(() => {
+    if (phase !== "ended" || !recordingUrl || !sessionNotebookId) return;
+    let cancelled = false;
+    (async () => {
+      const blob = await fetch(recordingUrl).then((r) => r.blob());
+      const id = `audio-${sessionNotebookId}-${Date.now()}`;
+      await saveBlob(id, blob);
+      if (!cancelled && nb.store.notebook.id === sessionNotebookId) {
+        nb.store.saveSession(nb.store.notebook.transcript, nb.store.notebook.cards, id);
+      }
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, recordingUrl, sessionNotebookId, nb.store]);
+
+  const open = useCallback(
+    async (id: string) => {
+      if (lectureActive && sessionNotebookId !== id) {
+        if (!window.confirm("A lecture is still recording in another notebook. Stop it and continue?")) return false;
+        session.stopSession();
+      }
+      return nb.openNotebook(id);
+    },
+    [lectureActive, nb, session, sessionNotebookId]
   );
 
-  // Save the lecture (transcript + study-guide cards) with the notebook when it ends.
-  useEffect(() => {
-    if (phase === "ended") nb.store.saveSession(transcript, cards, null);
-  }, [phase, transcript, cards, nb.store]);
+  const onAction = useCallback(
+    async (id: string, action: NotebookAction) => {
+      if (action === "import") {
+        setImportSheet({ kind: "own-pdf", notebookId: id });
+        return;
+      }
+      if (!(await open(id))) return;
+      if (action === "problem-set") nb.noteActivity("problem-set");
+      setStartPrompt(action === "lecture" && !(lectureActive && sessionNotebookId === id));
+      setRoute({ name: "notebook", id });
+    },
+    [lectureActive, nb, open, sessionNotebookId]
+  );
+
+  const beginClass = useCallback(
+    (c: StartClassChoice) => {
+      setStartPrompt(false);
+      setExpandOnIdle(c.expandOnIdle);
+      if (!c.record) return;
+      if (lectureActive) session.stopSession();
+      nb.noteActivity("lecture");
+      setSessionNotebookId(nb.store.notebook.id);
+      setStartRequest({ source: c.source, backend: c.backend });
+    },
+    [lectureActive, nb, session]
+  );
+
+  const openReview = useCallback(
+    async (id: string) => {
+      if (!(await open(id))) return;
+      const url = sessionNotebookId === id && session.recordingUrl ? session.recordingUrl : await nb.loadAudio();
+      setReviewAudio(url);
+      setRoute({ name: "review", id });
+    },
+    [nb, open, session.recordingUrl, sessionNotebookId]
+  );
+
+  const goHome = useCallback(() => {
+    if (lectureActive && sessionNotebookId === nb.store.notebook.id) {
+      if (!window.confirm("Stop recording and go back to your notebooks?")) return;
+      session.stopSession();
+    }
+    void nb.store.saveNow().then(() => nb.refreshList());
+    setRoute({ name: "home" });
+  }, [lectureActive, nb, session, sessionNotebookId]);
 
   const banners = (
     <>
-      {recorderError && <ErrorBanner kind="error">{recorderError}</ErrorBanner>}
-      {source === "live" && transcriptionSupport === "unsupported" && (
-        <ErrorBanner kind="warn">
-          Live transcription isn't supported in this browser. Recording still works, but the transcript
-          won't fill in automatically — try desktop Chrome for live text.
+      {session.recorderError && <ErrorBanner kind="error">{session.recorderError}</ErrorBanner>}
+      {session.source === "live" && lectureActive && session.transcriptionSupport === "unsupported" && (
+        <ErrorBanner kind="warn">Live transcription isn't supported in this browser. Recording still works; try desktop Chrome for live text.</ErrorBanner>
+      )}
+      {session.transcriptionError && <ErrorBanner kind="warn">{session.transcriptionError}</ErrorBanner>}
+      {session.analysisError && (
+        <ErrorBanner kind="error" onDismiss={session.dismissAnalysisError}>
+          Live feed unavailable ({session.analysisError.code}). Your recording, notes and transcript are safe. {session.analysisError.message}
         </ErrorBanner>
       )}
-      {transcriptionError && <ErrorBanner kind="warn">{transcriptionError}</ErrorBanner>}
-      {analysisError && (
-        <ErrorBanner kind="error" onDismiss={dismissAnalysisError}>
-          Analysis unavailable ({analysisError.code}) — your recording, notes, and transcript are safe.{" "}
-          {analysisError.message}
-        </ErrorBanner>
-      )}
-      {nb.storageError && (
-        <ErrorBanner kind="warn">
-          Notes can't be saved locally right now ({nb.storageError}). Keep this tab open.
-        </ErrorBanner>
-      )}
+      {nb.storageError && <ErrorBanner kind="warn">Notes can't be saved on this device right now ({nb.storageError}). Keep this tab open.</ErrorBanner>}
     </>
   );
 
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <strong>NOVA</strong>
-        <RecordControls
-          phase={phase}
-          source={source}
-          recorderState={recorderState}
-          timerSec={timerSec}
-          onStart={startSession}
-          onPause={pauseSession}
-          onResume={resumeSession}
-          onStop={stopSession}
-        />
-        <div className="view-toggle" role="tablist" aria-label="View">
-          <button role="tab" aria-selected={view === "notes"} className={view === "notes" ? "active" : ""} onClick={() => setView("notes")}>
-            Notes
-          </button>
-          <button role="tab" aria-selected={view === "guide"} className={view === "guide" ? "active" : ""} onClick={() => setView("guide")}>
-            Guide
-          </button>
-        </div>
-        <div className="spacer" />
-        <ModeToggle source={source} setSource={setSource} backend={backend} setBackend={setBackend} disabled={!canChangeMode} />
-        {phase === "ended" && <button onClick={resetSession}>New recording</button>}
-      </header>
+  const current = nb.store.notebook;
+  const showNotebook = route.name === "notebook" && current.id === route.id;
+  const showReview = route.name === "review" && current.id === route.id;
 
-      {view === "notes" ? (
-        <div className="notes-layout">
-          <div className="notes-main">
-            {nb.ready ? (
-              <NotebookView
-                nb={nb}
-                clockNow={clockNow}
-                handwriting={handwriting}
-                onPenDown={handwriting.penActivity}
-                seekAvailable={phase === "ended" && !!recordingUrl}
-                onSeek={(t) => {
-                  // Tap ink -> jump the recording to when it was written.
-                  const a = audioRef.current;
-                  if (!a) return;
-                  a.currentTime = t;
-                  void a.play().catch(() => undefined);
-                }}
+  return (
+    <>
+      <GlassFilters />
+      {showNotebook ? (
+        <LectureScreen
+          nb={nb}
+          session={session}
+          sessionHere={sessionNotebookId === current.id}
+          handwriting={handwriting}
+          cues={cues}
+          expandOnIdle={expandOnIdle}
+          onHome={goHome}
+          onReview={() => void openReview(current.id)}
+          onRecord={() => setStartPrompt(true)}
+          banners={banners}
+          overlay={
+            startPrompt && (
+              <StartClassModal
+                courseName={current.title}
+                courseCode={current.courseCode ?? ""}
+                initial={{ source: session.source, backend: session.backend }}
+                onClose={() => setStartPrompt(false)}
+                onBegin={beginClass}
               />
-            ) : (
-              <p className="muted" style={{ padding: "1rem" }}>
-                Opening your notebook…
-              </p>
-            )}
-          </div>
-          <aside className="notes-side">
-            {banners}
-            {phase === "ended" && recordingUrl && (
-              <div className="card replay-card">
-                <div className="panel-title" style={{ padding: 0, marginBottom: "0.4rem" }}>
-                  Recording — pick ▶︎ in the toolbar (S) and tap ink to jump to when you wrote it
-                </div>
-                <audio ref={audioRef} controls src={recordingUrl} />
-              </div>
-            )}
-            <BackToLiveBanner visible={isViewingHistory} onClick={backToLive} />
-            <MainPanel visual={currentVisualForDisplay} />
-            <Timeline
-              cards={cards}
-              viewingId={viewingCard?.id ?? null}
-              latestId={latestCard?.id ?? null}
-              onSelect={(id) => {
-                viewCard(id);
-                // In review, a card also seeks the recording to its source.
-                const card = cards.find((c) => c.id === id);
-                const a = audioRef.current;
-                if (phase === "ended" && card && a) a.currentTime = card.visual.sourceStartSec;
-              }}
-            />
-            <section className={`side-transcript ${transcriptOpen ? "open" : ""}`}>
-              <button className="side-transcript-toggle" onClick={() => setTranscriptOpen((v) => !v)} aria-expanded={transcriptOpen}>
-                {transcriptOpen ? "▾" : "▸"} Transcript
-                {!transcriptOpen && transcript.length > 0 && (
-                  <span className="muted"> — {transcript[transcript.length - 1].text.slice(0, 60)}…</span>
-                )}
-                {!transcriptOpen && transcript.length === 0 && noteLines.length > 0 && (
-                  <span className="muted"> — ✎ {noteLines.length} line{noteLines.length === 1 ? "" : "s"} read from your notes</span>
-                )}
-              </button>
-              {transcriptOpen && (
-                <TranscriptPanel transcript={transcript} interimText={interimText} notes={noteLines} onEditNote={handwriting.editLine} />
-              )}
-            </section>
-          </aside>
-        </div>
-      ) : phase === "ended" ? (
-        <ReviewView cards={cards} transcript={transcript} recordingUrl={recordingUrl} />
+            )
+          }
+        />
+      ) : showReview ? (
+        <ReviewScreen
+          title={current.title}
+          courseCode={current.courseCode}
+          cards={current.cards ?? []}
+          transcript={current.transcript ?? []}
+          audioUrl={reviewAudio}
+          onBack={goHome}
+          onMyNotes={() => setRoute({ name: "notebook", id: current.id })}
+        />
       ) : (
-        <div className="main-layout">
-          <div className="main-panel">
-            {banners}
-            <BackToLiveBanner visible={isViewingHistory} onClick={backToLive} />
-            <MainPanel visual={currentVisualForDisplay} />
-            <Timeline cards={cards} viewingId={viewingCard?.id ?? null} latestId={latestCard?.id ?? null} onSelect={viewCard} />
-          </div>
-          <TranscriptPanel transcript={transcript} interimText={interimText} notes={noteLines} onEditNote={handwriting.editLine} />
-        </div>
+        <HomeScreen
+          notebooks={nb.notebooks}
+          onAction={(id, a) => void onAction(id, a)}
+          onReview={(id) => void openReview(id)}
+          onNewNotebook={() => setNewSheet(true)}
+          onImport={(kind) => setImportSheet({ kind, notebookId: null })}
+          banner={nb.storageError ? <ErrorBanner kind="warn">Notes can't be saved on this device ({nb.storageError}).</ErrorBanner> : null}
+        />
       )}
-    </div>
+
+      {newSheet && (
+        <NewNotebookSheet
+          onClose={() => setNewSheet(false)}
+          onCreate={async (input) => {
+            if (lectureActive) session.stopSession();
+            await nb.createNotebook(input);
+            setNewSheet(false);
+          }}
+        />
+      )}
+      {importSheet && (
+        <ImportSheet
+          initialKind={importSheet.kind}
+          initialNotebookId={importSheet.notebookId}
+          notebooks={nb.notebooks}
+          onClose={() => setImportSheet(null)}
+          onImport={async (id, kind, files) => {
+            if (!(await open(id))) return;
+            for (const f of files) await nb.importPdf(f, kind);
+            await nb.store.saveNow();
+            await nb.refreshList();
+            setImportSheet(null);
+            setStartPrompt(false);
+            setRoute({ name: "notebook", id });
+          }}
+        />
+      )}
+    </>
   );
 }

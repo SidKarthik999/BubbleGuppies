@@ -37,7 +37,7 @@ export type TextBox = {
   createdAt: number;
 };
 
-export type PageTemplate = "blank" | "lined" | "grid";
+export type PageTemplate = "blank" | "lined" | "grid" | "dotted";
 
 export type PageBackground =
   | { kind: "template"; template: PageTemplate }
@@ -89,6 +89,39 @@ export type Notebook = {
   dismissedSymbolIds?: string[];
   /** True for the bundled offline demo notebook. */
   sample?: boolean;
+
+  // ---- Bubble Notes shelf metadata (all optional so old notebooks still load) ----
+  /** Course code shown in small caps on the cover label, e.g. "10-417". */
+  courseCode?: string;
+  cover?: CoverColor;
+  /** Paper for new pages. */
+  paper?: PageTemplate;
+  attachments?: Attachment[];
+  lectureCount?: number;
+  problemSetCount?: number;
+  /** Epoch ms of the last recorded lecture (drives the TODAY pill). */
+  lastLectureAt?: number;
+};
+
+export type CoverColor = "sage" | "classic" | "forest" | "butter" | "blush" | "periwinkle";
+
+export const COVER_COLORS: { id: CoverColor; label: string; hex: string; ink: string }[] = [
+  { id: "sage", label: "Sage", hex: "#a9cfc6", ink: "#1c2040" },
+  { id: "classic", label: "Classic blue", hex: "#2f5db8", ink: "#ffffff" },
+  { id: "forest", label: "Forest", hex: "#2f5c4a", ink: "#ffffff" },
+  { id: "butter", label: "Butter", hex: "#f2d37a", ink: "#1c2040" },
+  { id: "blush", label: "Blush", hex: "#ebb9c6", ink: "#1c2040" },
+  { id: "periwinkle", label: "Periwinkle", hex: "#8e9bf5", ink: "#ffffff" },
+];
+
+export type AttachmentKind = "own-pdf" | "class-provided";
+
+export type Attachment = {
+  id: string;
+  kind: AttachmentKind;
+  fileName: string;
+  pageCount: number;
+  addedAt: number;
 };
 
 /** A line of handwriting and what the recognizer read from it. */

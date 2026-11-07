@@ -27,7 +27,7 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
     });
   } catch {
-    throw { code: "NETWORK_ERROR", message: "Could not reach the analysis server." };
+    throw { code: "NETWORK_ERROR", message: "Could not reach the analysis server. Check that `npm run dev` is still running." };
   }
   if (!res.ok) {
     let parsed: ApiErrorBody | null = null;
@@ -36,7 +36,15 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
     } catch {
       // fall through to a generic error
     }
-    throw parsed?.error ?? { code: "UNKNOWN_ERROR", message: `Request failed (${res.status}).` };
+    if (parsed?.error) throw parsed.error;
+    // A bodyless 5xx comes from the Vite dev proxy when nothing listens on :8787.
+    if (res.status >= 500) {
+      throw {
+        code: "SERVER_UNREACHABLE",
+        message: "The analysis server isn't running. Start it with `npm run api` in a second terminal (it needs server/.env with OPENROUTER_API_KEY), or pick Offline demo in Start class.",
+      };
+    }
+    throw { code: "UNKNOWN_ERROR", message: `Request failed (${res.status}).` };
   }
   return (await res.json()) as T;
 }
@@ -146,7 +154,16 @@ export class AnalysisQueue {
       batch = this.lastSegments;
     }
     const cues = this.pendingCues.slice(0, LIMITS.maxCues);
-    // The contract needs ≥1 segment; offline mode can answer cues without one.
+    // The contract needs ≥1 segment. With no lecture speech yet (plain notes, a
+    // problem set), the marked lines themselves are the context.
+    if (batch.length === 0 && !this.allowsEmptySegments) {
+      batch = cues.map((c) => ({
+        id: `cue-ctx-${c.id}`,
+        startSec: c.atSec ?? 0,
+        endSec: c.atSec ?? 0,
+        text: `Student's handwritten note: ${c.text}`,
+      })).sort((a, b) => a.startSec - b.startSec);
+    }
     if (batch.length === 0 && !this.allowsEmptySegments) return;
     if (fromNotes) this.pendingNotes = [];
     else this.pending = [];

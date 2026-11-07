@@ -29,6 +29,8 @@ export type NotebookViewProps = {
   handwriting?: HandwritingControl;
   /** Scroll request: bring a page region into view. */
   scrollTarget?: { pageId: string; y: number; nonce: number } | null;
+  /** Split view: the toolbar collapses to pen, highlighter, eraser and the current color. */
+  compactToolbar?: boolean;
 };
 
 export function NotebookView(props: NotebookViewProps) {
@@ -215,7 +217,7 @@ export function NotebookView(props: NotebookViewProps) {
       else if (e.key === "=" || e.key === "+") setZoom(zoomRef.current * 1.15);
       else if (e.key === "-") setZoom(zoomRef.current / 1.15);
       else if (e.key === "0") setZoom(1);
-      else if (k === "n") nb.addPage("lined");
+      else if (k === "n") nb.addPage();
       else if (e.key === "?") setShowKeys((v) => !v);
       else if (k === "a" && session.selection && props.onAsk) props.onAsk(session.selection.pageId, session.selection.ids);
     };
@@ -267,6 +269,7 @@ export function NotebookView(props: NotebookViewProps) {
         onShowShortcuts={() => setShowKeys((v) => !v)}
         saveLabel={saveLabel}
         handwriting={props.handwriting}
+        compact={props.compactToolbar}
       />
       {props.header}
       <div className="nb-scroll" ref={scrollRef}>
@@ -331,7 +334,7 @@ function ShortcutHelp({ onClose }: { onClose: () => void }) {
     ["Delete", "Delete selection"],
     ["A", "Ask about the lasso selection"],
     ["= / - / 0", "Zoom in / out / reset (or Ctrl+scroll, pinch)"],
-    ["N", "New lined page"],
+    ["N", "New page"],
     ["?", "Toggle this help"],
   ];
   return (

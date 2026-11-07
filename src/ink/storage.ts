@@ -1,7 +1,7 @@
 // Minimal IndexedDB persistence: notebooks (vector strokes per page, cues,
 // transcript, cards) and blobs (PDF files, recorded audio). Local only.
 
-import type { Notebook } from "./model.ts";
+import type { CoverColor, Notebook, PageTemplate } from "./model.ts";
 
 const DB_NAME = "nova";
 const DB_VERSION = 1;
@@ -49,11 +49,51 @@ export const saveNotebook = (nb: Notebook) => tx(NOTEBOOKS, "readwrite", (s) => 
 export const loadNotebook = (id: string) => tx<Notebook | undefined>(NOTEBOOKS, "readonly", (s) => s.get(id));
 export const deleteNotebook = (id: string) => tx(NOTEBOOKS, "readwrite", (s) => s.delete(id)).then(() => undefined);
 
-export async function listNotebooks(): Promise<{ id: string; title: string; updatedAt: number; sample?: boolean }[]> {
+/** What the home shelf needs to draw a notebook without loading its ink. */
+export type NotebookSummary = {
+  id: string;
+  title: string;
+  updatedAt: number;
+  createdAt: number;
+  sample?: boolean;
+  courseCode: string;
+  cover: CoverColor;
+  paper: PageTemplate;
+  pdfCount: number;
+  lectureCount: number;
+  problemSetCount: number;
+  lastLectureAt: number | null;
+  /** A saved lecture (transcript or visuals) exists, so Lecture review can open. */
+  hasSession: boolean;
+  sessionDurationSec: number;
+  visualCount: number;
+};
+
+export function summarize(n: Notebook): NotebookSummary {
+  const last = n.transcript?.[n.transcript.length - 1];
+  const pdfFiles = new Set(n.pages.flatMap((p) => (p.background.kind === "pdf" ? [p.background.fileId] : [])));
+  return {
+    id: n.id,
+    title: n.title,
+    updatedAt: n.updatedAt,
+    createdAt: n.createdAt,
+    sample: n.sample,
+    courseCode: n.courseCode ?? "",
+    cover: n.cover ?? "periwinkle",
+    paper: n.paper ?? "lined",
+    pdfCount: n.attachments?.length ?? pdfFiles.size,
+    lectureCount: n.lectureCount ?? 0,
+    problemSetCount: n.problemSetCount ?? 0,
+    lastLectureAt: n.lastLectureAt ?? null,
+    hasSession: (n.cards?.length ?? 0) > 0 || (n.transcript?.length ?? 0) > 0,
+    sessionDurationSec: last ? last.endSec : 0,
+    visualCount: n.cards?.length ?? 0,
+  };
+}
+
+export async function listNotebooks(): Promise<NotebookSummary[]> {
   const all = await tx<Notebook[]>(NOTEBOOKS, "readonly", (s) => s.getAll());
-  return all
-    .map((n) => ({ id: n.id, title: n.title, updatedAt: n.updatedAt, sample: n.sample }))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return all.map(summarize).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export const saveBlob = (id: string, blob: Blob) => tx(BLOBS, "readwrite", (s) => s.put(blob, id)).then(() => undefined);

@@ -341,6 +341,9 @@ export function useLectureSession(options: LectureSessionOptions = {}) {
     transcriptionSupport: speech.support,
     transcriptionError: speech.error,
     interimText: source === "live" ? speech.interimText : "",
+    /** Live caption for the bottom bar: what the recognizer is hearing right now. */
+    captionText: source === "live" ? speech.interimText || speech.lastFinalText : "",
+    speechStatus: speech.status,
 
     transcript,
     cards,
