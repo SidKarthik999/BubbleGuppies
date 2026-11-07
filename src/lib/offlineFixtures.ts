@@ -97,11 +97,36 @@ const FIXTURES: Record<string, AnalyzeResponse> = {
 
 const OFFLINE_LATENCY_MS = 450;
 
+export const NOTES_TOPIC = "From your notes";
+
+/** Offline stand-in for analyzing handwriting: a deterministic recap card of the notes read so far. */
+function offlineNotesResponse(req: Parameters<Analyzer>[0], seen: string[]): AnalyzeResponse {
+  for (const s of req.segments) {
+    const text = s.text.replace(/^Student's handwritten note:\s*/, "");
+    if (!seen.includes(text)) seen.push(text);
+  }
+  const recap = seen.slice(-6).join(" · ").slice(0, 500);
+  const visual: Visual = {
+    topic: NOTES_TOPIC,
+    recap: recap || "Your handwritten notes will be summarized here.",
+    visualType: "recap",
+    nodes: [],
+    edges: [],
+    sourceStartSec: req.segments[0]?.startSec ?? 0,
+  };
+  return req.currentVisual?.topic === NOTES_TOPIC ? { action: "replace", visual } : { action: "append", visual };
+}
+
 export function createOfflineAnalyzer(): Analyzer {
+  const notesSeen: string[] = [];
   // A trigger fires when its segment appears anywhere in a batch (batches
   // coalesce, so the trigger isn't always the newest segment), once per session.
   const fired = new Set<string>();
   return (req) => {
+    if (req.segments.length > 0 && req.segments.every((s) => s.id.startsWith("note-"))) {
+      const res = offlineNotesResponse(req, notesSeen);
+      return new Promise((resolve) => setTimeout(() => resolve(res), OFFLINE_LATENCY_MS));
+    }
     let response: AnalyzeResponse = { action: "skip" };
     for (const seg of req.segments) {
       const fixture = FIXTURES[seg.id];

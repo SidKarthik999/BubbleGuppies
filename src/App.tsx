@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLectureSession } from "./hooks/useLectureSession";
-import { useNotebook } from "./hooks/useNotebook";
+import { useNotebook, useStoreVersion } from "./hooks/useNotebook";
+import { useHandwriting } from "./hooks/useHandwriting";
 import { RecordControls } from "./components/RecordControls";
 import { ModeToggle } from "./components/ModeToggle";
 import { ErrorBanner } from "./components/ErrorBanner";
@@ -19,6 +20,10 @@ export default function App() {
   const [view, setView] = useState<View>("notes");
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  // Handwriting -> text -> the same analysis pipeline as the lecture transcript.
+  const handwriting = useHandwriting(nb.store, session.submitNoteSegments);
+  useStoreVersion(nb.store);
+  const noteLines = nb.store.noteLines();
   const {
     source,
     setSource,
@@ -122,6 +127,8 @@ export default function App() {
               <NotebookView
                 nb={nb}
                 clockNow={clockNow}
+                handwriting={handwriting}
+                onPenDown={handwriting.penActivity}
                 seekAvailable={phase === "ended" && !!recordingUrl}
                 onSeek={(t) => {
                   // Tap ink -> jump the recording to when it was written.
@@ -167,8 +174,13 @@ export default function App() {
                 {!transcriptOpen && transcript.length > 0 && (
                   <span className="muted"> — {transcript[transcript.length - 1].text.slice(0, 60)}…</span>
                 )}
+                {!transcriptOpen && transcript.length === 0 && noteLines.length > 0 && (
+                  <span className="muted"> — ✎ {noteLines.length} line{noteLines.length === 1 ? "" : "s"} read from your notes</span>
+                )}
               </button>
-              {transcriptOpen && <TranscriptPanel transcript={transcript} interimText={interimText} />}
+              {transcriptOpen && (
+                <TranscriptPanel transcript={transcript} interimText={interimText} notes={noteLines} onEditNote={handwriting.editLine} />
+              )}
             </section>
           </aside>
         </div>
@@ -182,7 +194,7 @@ export default function App() {
             <MainPanel visual={currentVisualForDisplay} />
             <Timeline cards={cards} viewingId={viewingCard?.id ?? null} latestId={latestCard?.id ?? null} onSelect={viewCard} />
           </div>
-          <TranscriptPanel transcript={transcript} interimText={interimText} />
+          <TranscriptPanel transcript={transcript} interimText={interimText} notes={noteLines} onEditNote={handwriting.editLine} />
         </div>
       )}
     </div>

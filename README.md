@@ -127,6 +127,38 @@ and 0/100 pages of ordinary writing. Drop real samples in
 **Housekeeping:** files retired during development live in `.trash/`
 (gitignored) and can be deleted.
 
+## Reading handwriting into the study guide
+
+Turn on **✎ Read handwriting** in the notebook toolbar (on by default). When
+you pause writing for ~1.5 s, each new or changed line of ink is cropped to a
+clean black-on-white image and read by an **open-source handwriting model,
+[TrOCR-small-handwritten](https://huggingface.co/Xenova/trocr-small-handwritten)**
+(Microsoft, MIT license), running **in your browser** via
+[Transformers.js](https://huggingface.co/docs/transformers.js) in a web
+worker. Ink images never leave the device; only the recognized text does.
+
+The text goes through the **same analysis pipeline as the lecture
+transcript**: each line becomes a segment (`note-…`, timestamped with the
+lecture clock, or with time into the notebook outside a lecture) in the same
+single-flight `/api/analyze` queue, so it produces the same study-guide
+cards and diagrams in the side panel. Notes are sent in their own batches so
+every request stays in time order, and a re-read line replaces its older
+unsent version. Offline mode summarizes your notes into a deterministic
+"From your notes" card.
+
+Read lines appear in the transcript panel marked ✎; click one to fix a
+misread, which re-sends the corrected text. The toggle shows model download
+progress (~60 MB the first time, then cached by the browser) and errors; if
+the model can't load, ink and everything else keep working.
+
+**Limits:** TrOCR reads one line at a time and was trained on English
+handwriting (IAM), so neat print reads best; math notation and very slanted
+or cursive writing read poorly. Mouse/trackpad handwriting is harder than pen
+handwriting.
+
+New dependency: `@huggingface/transformers` — runs the ONNX model in the
+browser (WASM runtime fetched from jsDelivr on first use).
+
 ## Known gaps / integration notes
 
 - Browser live speech recognition is Chrome-desktop-only; other browsers

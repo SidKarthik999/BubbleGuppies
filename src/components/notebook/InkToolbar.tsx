@@ -1,5 +1,18 @@
 import { HIGHLIGHTER_COLORS, PEN_COLORS, PEN_WIDTHS, type PageTemplate } from "../../ink/model";
 import type { InkSession, Tool } from "../../ink/inkSession";
+import type { OcrStatus } from "../../ink/handwriting/ocrClient";
+
+export type HandwritingControl = { enabled: boolean; setEnabled: (on: boolean) => void; status: OcrStatus };
+
+function ocrLabel(h: HandwritingControl): string {
+  if (!h.enabled) return "Read handwriting: off";
+  const s = h.status;
+  if (s.state === "loading") return `Loading handwriting model ${Math.round(s.progress * 100)}%`;
+  if (s.state === "reading") return "Reading your notes…";
+  if (s.state === "error") return "Handwriting reader unavailable";
+  if (s.state === "ready") return "Reading handwriting ✓";
+  return "Read handwriting: on";
+}
 
 type Props = {
   session: InkSession;
@@ -14,6 +27,7 @@ type Props = {
   seekAvailable: boolean;
   onShowShortcuts: () => void;
   saveLabel: string;
+  handwriting?: HandwritingControl;
 };
 
 const TOOLS: { tool: Tool; label: string; key: string; icon: string }[] = [
@@ -141,6 +155,20 @@ export function InkToolbar(p: Props) {
           ⌨︎
         </button>
       </div>
+      {p.handwriting && (
+        <button
+          className={`tb-btn wide ocr-toggle ${p.handwriting.enabled ? "active" : ""} ${p.handwriting.status.state === "error" ? "err" : ""}`}
+          aria-pressed={p.handwriting.enabled}
+          title={
+            p.handwriting.status.state === "error"
+              ? `${p.handwriting.status.message} — your ink is safe. Click to turn reading off.`
+              : "Read your handwriting on this device (open-source TrOCR model) and turn it into study-guide visuals, like the lecture transcript"
+          }
+          onClick={() => p.handwriting!.setEnabled(!p.handwriting!.enabled)}
+        >
+          ✎ {ocrLabel(p.handwriting)}
+        </button>
+      )}
       <span className="tb-status">{p.saveLabel}</span>
     </div>
   );

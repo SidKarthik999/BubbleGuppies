@@ -15,6 +15,7 @@
     "eval:cues": "node --experimental-strip-types --no-warnings tests/cueEval.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.2",
     "pdfjs-dist": "^6.5.438",
     "perfect-freehand": "^1.2.3",
     "react": "^18.3.1",

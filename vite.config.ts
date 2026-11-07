@@ -6,6 +6,9 @@ import react from "@vitejs/plugin-react";
 // dev workflow: `npm run dev` + `npm run api`.
 export default defineConfig({
   plugins: [react()],
+  // The handwriting reader runs Transformers.js in a module worker; it splits
+  // into dynamic chunks, which the default (iife) worker format can't build.
+  worker: { format: "es" },
   server: {
     proxy: {
       "/api": {

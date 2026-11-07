@@ -4,7 +4,7 @@
 
 import { insertSorted } from "./geometry.ts";
 import { saveNotebook } from "./storage.ts";
-import type { CueRecord, Notebook, Page, Stroke, TextBox } from "./model.ts";
+import type { CueRecord, NoteLine, Notebook, Page, Stroke, TextBox } from "./model.ts";
 import type { Card, Segment } from "../types";
 
 export type StoreEvent =
@@ -13,6 +13,7 @@ export type StoreEvent =
   | { type: "text-changed"; pageId: string }
   | { type: "pages-changed" }
   | { type: "cues-changed" }
+  | { type: "notes-changed" }
   | { type: "notebook-replaced" }
   | { type: "history-changed" }
   | { type: "saved"; at: number }
@@ -188,6 +189,29 @@ export class NotebookStore {
     const ids = new Set<string>(this.notebook.dismissedSymbolIds ?? []);
     for (const c of this.notebook.cues) for (const id of c.symbolStrokeIds) ids.add(id);
     return ids;
+  }
+
+  // ------------------------------------------------------ handwriting text
+
+  noteLines(): NoteLine[] {
+    return this.notebook.noteLines ?? [];
+  }
+
+  upsertNoteLine(line: NoteLine): void {
+    const lines = this.noteLines().filter((l) => l.key !== line.key);
+    this.notebook.noteLines = [...lines, line];
+    this.emit({ type: "notes-changed" });
+    this.dirty();
+  }
+
+  /** Keeps only lines whose key is in `keep` for a page (ink was erased). */
+  pruneNoteLines(pageId: string, keep: ReadonlySet<string>): void {
+    const before = this.noteLines();
+    const after = before.filter((l) => l.pageId !== pageId || keep.has(l.key));
+    if (after.length === before.length) return;
+    this.notebook.noteLines = after;
+    this.emit({ type: "notes-changed" });
+    this.dirty();
   }
 
   // ------------------------------------------------------- session snapshot
