@@ -62,6 +62,8 @@ export class AnalysisQueue {
   private analyzer: Analyzer;
   private readonly cb: QueueCallbacks;
   private pending: Segment[] = [];
+  /** Text read from the student's handwriting, analyzed like transcript. */
+  private pendingNotes: Segment[] = [];
   private pendingCues: NoteCue[] = [];
   private inFlight = false;
   private currentVisual: Visual | null = null;
@@ -88,6 +90,7 @@ export class AnalysisQueue {
 
   resetSession() {
     this.pending = [];
+    this.pendingNotes = [];
     this.pendingCues = [];
     this.lastSegments = [];
     this.inFlight = false;
@@ -105,6 +108,21 @@ export class AnalysisQueue {
   }
 
   /**
+   * Enqueues handwriting-derived segments ("note-<line>-v<n>"). A newer
+   * version of the same line replaces an unsent older one. Notes go out in
+   * their own requests so each request's segments stay in time order.
+   */
+  enqueueNotes(segments: Segment[]) {
+    if (segments.length === 0) return;
+    const lineOf = (id: string) => id.replace(/-v\d+$/, "");
+    const incoming = new Set(segments.map((s) => lineOf(s.id)));
+    this.pendingNotes = [...this.pendingNotes.filter((s) => !incoming.has(lineOf(s.id))), ...segments]
+      .sort((a, b) => a.startSec - b.startSec)
+      .slice(-LIMITS.maxSegments);
+    if (!this.inFlight) this.flush();
+  }
+
+  /**
    * Adds cues. If nothing is in flight they go out right away, riding along
    * with pending segments — or, when there are none, with the most recent
    * finalized segments as context (`context`, newest last).
@@ -118,6 +136,11 @@ export class AnalysisQueue {
 
   private flush() {
     let batch = this.pending;
+    let fromNotes = false;
+    if (batch.length === 0 && this.pendingNotes.length > 0) {
+      batch = this.pendingNotes;
+      fromNotes = true;
+    }
     if (batch.length === 0) {
       if (this.pendingCues.length === 0) return;
       batch = this.lastSegments;
@@ -125,7 +148,8 @@ export class AnalysisQueue {
     const cues = this.pendingCues.slice(0, LIMITS.maxCues);
     // The contract needs ≥1 segment; offline mode can answer cues without one.
     if (batch.length === 0 && !this.allowsEmptySegments) return;
-    this.pending = [];
+    if (fromNotes) this.pendingNotes = [];
+    else this.pending = [];
     this.pendingCues = this.pendingCues.slice(cues.length);
     this.inFlight = true;
     this.cb.onBusyChange(true);
@@ -154,7 +178,7 @@ export class AnalysisQueue {
         // Keep the cues for the next attempt; segments stay in the transcript.
         this.pendingCues = [...cues, ...this.pendingCues];
         this.cb.onError(asFailure(err, batch[batch.length - 1]?.id ?? ""), req);
-        if (this.pending.length > 0) this.flush();
+        if (this.pending.length > 0 || this.pendingNotes.length > 0) this.flush();
       });
   }
 

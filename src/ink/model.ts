@@ -83,10 +83,29 @@ export type Notebook = {
   transcript: Segment[];
   cards: Card[];
   audioBlobId: string | null;
+  /** Handwriting read by the on-device model, one record per line of ink. */
+  noteLines?: NoteLine[];
   /** Symbol strokes from cues the student undid — never re-detected. */
   dismissedSymbolIds?: string[];
   /** True for the bundled offline demo notebook. */
   sample?: boolean;
+};
+
+/** A line of handwriting and what the recognizer read from it. */
+export type NoteLine = {
+  /** pageId + earliest stroke id: stable while the line grows. */
+  key: string;
+  pageId: string;
+  /** Sorted stroke ids — when this changes the line is read again. */
+  signature: string;
+  bbox: BBox;
+  text: string;
+  /** The student corrected the text by hand; keep it until the ink changes. */
+  edited: boolean;
+  /** Lecture clock when written, or seconds into the notebook outside a lecture. */
+  atSec: number;
+  version: number;
+  updatedAt: number;
 };
 
 export const PAGE_WIDTH = 816; // 8.5in at 96 dpi

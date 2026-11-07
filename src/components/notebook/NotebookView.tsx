@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PageView } from "./PageView";
-import { InkToolbar } from "./InkToolbar";
+import { InkToolbar, type HandwritingControl } from "./InkToolbar";
 import { TextBoxLayer } from "./TextBoxLayer";
 import { useSessionVersion, useStoreVersion, type NotebookApi } from "../../hooks/useNotebook";
 import { HIGHLIGHTER_COLORS, PEN_COLORS, PEN_WIDTHS, newId, type Page, type Stroke, type TextBox } from "../../ink/model";
@@ -25,6 +25,8 @@ export type NotebookViewProps = {
   header?: ReactNode;
   /** Shown floating at the bottom (cue confirmation chips). */
   footer?: ReactNode;
+  /** On-device handwriting reading toggle + status. */
+  handwriting?: HandwritingControl;
   /** Scroll request: bring a page region into view. */
   scrollTarget?: { pageId: string; y: number; nonce: number } | null;
 };
@@ -264,6 +266,7 @@ export function NotebookView(props: NotebookViewProps) {
         seekAvailable={!!props.seekAvailable}
         onShowShortcuts={() => setShowKeys((v) => !v)}
         saveLabel={saveLabel}
+        handwriting={props.handwriting}
       />
       {props.header}
       <div className="nb-scroll" ref={scrollRef}>

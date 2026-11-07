@@ -285,6 +285,14 @@ export function useLectureSession(options: LectureSessionOptions = {}) {
     optsRef.current.onCuesSent?.(cues.map((c) => c.id));
   }, [flushPending]);
 
+  /**
+   * Handwriting read from the notebook, analyzed exactly like transcript
+   * segments: same queue, same single-flight requests, same cards.
+   */
+  const submitNoteSegments = useCallback((segments: Segment[]) => {
+    queueRef.current.enqueueNotes(segments);
+  }, []);
+
   useEffect(() => {
     if (phase !== "running") return;
     const id = setInterval(forceTick, DISPLAY_TICK_MS);
@@ -321,6 +329,7 @@ export function useLectureSession(options: LectureSessionOptions = {}) {
     resetSession,
     restoreSession,
     submitCues,
+    submitNoteSegments,
 
     timerSec: clock.elapsedSec(),
     analyzing,

@@ -340,3 +340,11 @@ kbd { font-family: ui-monospace, monospace; font-size: 0.8rem; background: var(-
 .recap-card { flex-direction: column; gap: 0.4rem; text-align: center; }
 .recap-card p { margin: 0; color: var(--text); line-height: 1.45; }
 .recap-glyph { font-size: 1.6rem; color: var(--accent); }
+
+/* Handwriting reading */
+.ocr-toggle.err { border-color: var(--warn); color: var(--warn); }
+.note-line { display: flex; align-items: baseline; gap: 0.35rem; }
+.note-badge { color: var(--accent-2); font-weight: 700; }
+.note-text { all: unset; cursor: text; color: #c4b5fd; }
+.note-text:hover { text-decoration: underline dotted; }
+.note-edit { flex: 1; font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; padding: 0.1rem 0.3rem; }
