@@ -25,10 +25,11 @@ npm run dev   # Vite dev server (proxies /api -> http://127.0.0.1:8787)
 npm run api   # analysis server (server/index.mjs)
 ```
 
-`npm run api` loads `server/.env` if present (copy `server/.env.example`
-and fill in your key — `server/.env` is gitignored). Without it, the API
-runs but returns `503 API_KEY_MISSING` on `/api/analyze` — the web app
-stays usable (recording + transcript) regardless.
+`npm run api` loads `server/.env` if present: `cp server/.env.example server/.env`
+and set `OPENROUTER_API_KEY` (`server/.env` is gitignored). Without a key the
+API still runs but `/api/analyze` returns `503 API_KEY_MISSING` — the web app
+stays usable (recording + transcript) regardless. See `server/README.md` for
+the API's own docs and offline tests (`node server/test/run.mjs`).
 
 ## Demo without the API
 
@@ -72,6 +73,5 @@ server/
 
 - Browser live speech recognition is Chrome-desktop-only; other browsers
   fall back to recording-only with a clear banner.
-- `npm run build` / `npm run dev` have not been run in this environment —
-  the source was authored without local npm registry access. Please run
-  `npm install && npm run build` and report any TypeScript/build errors.
+- Diagram responses from the real API take ~9 s; the client keeps recording
+  and coalesces new transcript while a request is in flight.
