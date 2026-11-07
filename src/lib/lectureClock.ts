@@ -13,6 +13,8 @@ export type LectureClock = {
   elapsedSec(): number;
   isRunning(): boolean;
   isPaused(): boolean;
+  /** Lecture seconds per wall-clock second (sample demo speed). Set before start(). */
+  setRate(rate: number): void;
 };
 
 export function createLectureClock(): LectureClock {
@@ -20,6 +22,8 @@ export function createLectureClock(): LectureClock {
   let pausedAt: number | null = null;
   let pausedMs = 0;
   let stopped = false;
+  let stoppedAt: number | null = null;
+  let rate = 1;
 
   const now = () => performance.now();
 
@@ -29,6 +33,7 @@ export function createLectureClock(): LectureClock {
       pausedAt = null;
       pausedMs = 0;
       stopped = false;
+      stoppedAt = null;
     },
     pause() {
       if (startedAt === null || pausedAt !== null || stopped) return;
@@ -40,6 +45,7 @@ export function createLectureClock(): LectureClock {
       pausedAt = null;
     },
     stop() {
+      if (!stopped) stoppedAt = pausedAt ?? now();
       stopped = true;
     },
     reset() {
@@ -47,11 +53,15 @@ export function createLectureClock(): LectureClock {
       pausedAt = null;
       pausedMs = 0;
       stopped = false;
+      stoppedAt = null;
     },
     elapsedSec() {
       if (startedAt === null) return 0;
-      const end = pausedAt ?? now();
-      return Math.max(0, (end - startedAt - pausedMs) / 1000);
+      const end = stoppedAt ?? pausedAt ?? now();
+      return Math.max(0, ((end - startedAt - pausedMs) / 1000) * rate);
+    },
+    setRate(r: number) {
+      rate = r > 0 ? r : 1;
     },
     isRunning() {
       return startedAt !== null && pausedAt === null && !stopped;

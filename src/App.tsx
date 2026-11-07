@@ -18,6 +18,7 @@ export default function App() {
   const nb = useNotebook();
   const [view, setView] = useState<View>("notes");
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const {
     source,
     setSource,
@@ -118,7 +119,18 @@ export default function App() {
         <div className="notes-layout">
           <div className="notes-main">
             {nb.ready ? (
-              <NotebookView nb={nb} clockNow={clockNow} />
+              <NotebookView
+                nb={nb}
+                clockNow={clockNow}
+                seekAvailable={phase === "ended" && !!recordingUrl}
+                onSeek={(t) => {
+                  // Tap ink -> jump the recording to when it was written.
+                  const a = audioRef.current;
+                  if (!a) return;
+                  a.currentTime = t;
+                  void a.play().catch(() => undefined);
+                }}
+              />
             ) : (
               <p className="muted" style={{ padding: "1rem" }}>
                 Opening your notebook…
@@ -127,9 +139,28 @@ export default function App() {
           </div>
           <aside className="notes-side">
             {banners}
+            {phase === "ended" && recordingUrl && (
+              <div className="card replay-card">
+                <div className="panel-title" style={{ padding: 0, marginBottom: "0.4rem" }}>
+                  Recording — pick ▶︎ in the toolbar (S) and tap ink to jump to when you wrote it
+                </div>
+                <audio ref={audioRef} controls src={recordingUrl} />
+              </div>
+            )}
             <BackToLiveBanner visible={isViewingHistory} onClick={backToLive} />
             <MainPanel visual={currentVisualForDisplay} />
-            <Timeline cards={cards} viewingId={viewingCard?.id ?? null} latestId={latestCard?.id ?? null} onSelect={viewCard} />
+            <Timeline
+              cards={cards}
+              viewingId={viewingCard?.id ?? null}
+              latestId={latestCard?.id ?? null}
+              onSelect={(id) => {
+                viewCard(id);
+                // In review, a card also seeks the recording to its source.
+                const card = cards.find((c) => c.id === id);
+                const a = audioRef.current;
+                if (phase === "ended" && card && a) a.currentTime = card.visual.sourceStartSec;
+              }}
+            />
             <section className={`side-transcript ${transcriptOpen ? "open" : ""}`}>
               <button className="side-transcript-toggle" onClick={() => setTranscriptOpen((v) => !v)} aria-expanded={transcriptOpen}>
                 {transcriptOpen ? "▾" : "▸"} Transcript

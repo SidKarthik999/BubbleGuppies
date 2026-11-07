@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "api": "node --env-file-if-exists=server/.env server/index.mjs",
-    "lint": "tsc -b --noEmit"
+    "lint": "tsc -b --noEmit",
+    "eval:cues": "node --experimental-strip-types --no-warnings tests/cueEval.ts"
   },
   "dependencies": {
     "pdfjs-dist": "^6.5.438",

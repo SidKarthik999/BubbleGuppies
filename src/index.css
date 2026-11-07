@@ -328,3 +328,6 @@ audio { width: 100%; }
 .shortcut-help .sh-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.4rem; }
 .shortcut-help td { padding: 0.2rem 0.6rem 0.2rem 0; vertical-align: top; }
 kbd { font-family: ui-monospace, monospace; font-size: 0.8rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 0.3rem; }
+
+.replay-card { padding: 0.75rem !important; }
+.replay-card audio { height: 36px; }

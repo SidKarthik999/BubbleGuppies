@@ -98,10 +98,20 @@ const FIXTURES: Record<string, AnalyzeResponse> = {
 const OFFLINE_LATENCY_MS = 450;
 
 export function createOfflineAnalyzer(): Analyzer {
+  // A trigger fires when its segment appears anywhere in a batch (batches
+  // coalesce, so the trigger isn't always the newest segment), once per session.
+  const fired = new Set<string>();
   return (req) => {
-    const newest = req.segments[req.segments.length - 1];
-    const fixture = newest ? FIXTURES[newest.id] : undefined;
-    const response: AnalyzeResponse = fixture ?? { action: "skip" };
+    let response: AnalyzeResponse = { action: "skip" };
+    for (const seg of req.segments) {
+      const fixture = FIXTURES[seg.id];
+      if (fixture && !fired.has(seg.id)) {
+        fired.add(seg.id);
+        response = fixture;
+      }
+    }
+    // A replace only makes sense when there is a current visual.
+    if (response.action === "replace" && !req.currentVisual) response = { ...response, action: "append" };
     return new Promise((resolve) => {
       setTimeout(() => resolve(response), OFFLINE_LATENCY_MS);
     });
