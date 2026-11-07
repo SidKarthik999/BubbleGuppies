@@ -8,29 +8,46 @@
 import { analysisFailed } from "./errors.mjs";
 
 /**
- * Calls OpenRouter and returns { data, annotations }. `data` is the parsed
- * JSON content. Throws ApiError(502) for timeouts, upstream errors, and
+ * Structured-output call. Returns { data, annotations } with `data` parsed
+ * from JSON. Throws ApiError(502) for timeouts, upstream errors, and
  * unusable output. Never includes upstream messages or keys in the error.
  */
-export async function chatJson(config, {
+export async function chatJson(config, { schema, schemaName, ...opts }) {
+  const { content, annotations } = await chat(config, {
+    ...opts,
+    extra: {
+      response_format: { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } },
+      provider: { require_parameters: true },
+    },
+  });
+  try {
+    return { data: JSON.parse(stripCodeFence(content)), annotations };
+  } catch {
+    throw analysisFailed("The analysis service returned unreadable output.", "bad json");
+  }
+}
+
+/**
+ * Plain-text call, used for web search. Measured 2026-11-07 with
+ * google/gemini-3.8-flash: the openrouter:web_search tool searches either way,
+ * but url_citation annotations come back only when the reply is prose, not
+ * when it is JSON (with or without response_format). Returns { text, annotations }.
+ */
+export async function chatText(config, opts) {
+  const { content, annotations } = await chat(config, opts);
+  return { text: content, annotations };
+}
+
+async function chat(config, {
   model = config.model,
   messages,
-  schema,
-  schemaName,
   timeoutMs = config.timeoutMs,
   maxTokens = 4096,
   temperature = 0.2,
   tools,
+  extra = {},
 }) {
-  const body = {
-    model,
-    messages,
-    response_format: { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } },
-    provider: { require_parameters: true },
-    temperature,
-    max_tokens: maxTokens,
-    stream: false,
-  };
+  const body = { model, messages, ...extra, temperature, max_tokens: maxTokens, stream: false };
   // Reasoning shares the max_tokens budget; exclude keeps it out of the response.
   if (config.reasoningEffort) body.reasoning = { effort: config.reasoningEffort, exclude: true };
   if (tools) body.tools = tools;
@@ -73,13 +90,7 @@ export async function chatJson(config, {
     throw analysisFailed("The analysis service returned no result.", "empty content");
   }
 
-  let data;
-  try {
-    data = JSON.parse(stripCodeFence(content));
-  } catch {
-    throw analysisFailed("The analysis service returned unreadable output.", "bad json");
-  }
-  return { data, annotations: readAnnotations(choice.message.annotations) };
+  return { content, annotations: readAnnotations(choice.message.annotations) };
 }
 
 function stripCodeFence(text) {

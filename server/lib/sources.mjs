@@ -51,12 +51,11 @@ export function validateNotes(value, path = "notes") {
 // ---------------------------------------------------------------------------
 
 /** JSON-schema fragment for a citation the model may emit. */
-export function citationSchema(kinds, { withUrl = false } = {}) {
+export function citationSchema(kinds) {
   const properties = {
     kind: { type: "string", enum: kinds },
-    id: { type: "string", description: "The excerpt or segment id exactly as given. \"\" for web." },
+    id: { type: "string", description: "The excerpt, segment, or web source id exactly as given." },
   };
-  if (withUrl) properties.url = { type: "string", description: "For web: a URL from your search results, else \"\"." };
   return { type: "object", additionalProperties: false, required: Object.keys(properties), properties };
 }
 
@@ -70,27 +69,37 @@ const normalizeUrl = (url) => url.trim().replace(/\/+$/, "");
  */
 export function citationContext({ segments = [], materials = [], notes = [], annotations = [] }) {
   const web = new Map();
+  const webById = new Map();
   for (const a of annotations) {
     const key = normalizeUrl(a.url);
-    if (!web.has(key)) web.set(key, a);
+    if (web.has(key)) continue;
+    web.set(key, a);
+    webById.set(`web${webById.size + 1}`, a);
   }
   return {
     segment: new Set(segments.map((s) => s.id)),
     material: new Set(materials.map((m) => m.id)),
     note: new Set(notes.map((n) => n.id)),
     web,
+    webById,
   };
 }
 
-function webCitation(entry) {
-  let title = cleanText(entry.title ?? "");
-  if (!title) {
-    try {
-      title = new URL(entry.url).hostname;
-    } catch {
-      title = entry.url;
-    }
+/** Web sources as data for a follow-up prompt: [{id:"web1", title}] (no URLs; the server maps ids back). */
+export function webSourcesForPrompt(ctx) {
+  return [...ctx.webById].map(([id, a]) => ({ id, title: cleanText(a.title ?? "") || hostOf(a.url) }));
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
   }
+}
+
+function webCitation(entry) {
+  const title = cleanText(entry.title ?? "") || hostOf(entry.url);
   return { kind: "web", url: entry.url, title: clip(title, LIMITS.excerptMetaChars) };
 }
 
@@ -106,7 +115,8 @@ export function toCitation(raw, ctx, kinds) {
     case "note":
       return ctx.note.has(id) ? { kind: "note", excerptId: id } : null;
     case "web": {
-      const entry = typeof raw.url === "string" ? ctx.web.get(normalizeUrl(raw.url)) : undefined;
+      // By source id from webSourcesForPrompt, or by an exact annotated URL.
+      const entry = ctx.webById.get(id) ?? (typeof raw.url === "string" ? ctx.web.get(normalizeUrl(raw.url)) : undefined);
       return entry ? webCitation(entry) : null;
     }
     default:

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SEGMENTS } from "./fixtures.mjs";
-import { analyze, assist, completion, decision, expectError, noKeyPort, startApi, upstream, urlCitation } from "./helpers.mjs";
+import { analyze, assist, completion, decision, expectError, mentions, noKeyPort, prose, startApi, upstream, urlCitation } from "./helpers.mjs";
 
 const webPort = await startApi({ webBudgetMs: 5000 });
 const tightPort = await startApi({ webBudgetMs: 1800 });
@@ -66,7 +66,7 @@ test("invented material and segment ids are dropped from answers and visuals", a
 
 const pass1 = (needsWeb = ["c2"]) =>
   completion(decision({ action: "skip", sourceSegmentId: "", cueAnswers: [ans("c1", [{ kind: "material", id: "m1" }]), ans("c2", [], "Pass-1 guess.")], needsWeb }));
-const webAnswer = (answers, annotations) => completion({ answers }, { annotations });
+const isWebCall = (body) => Array.isArray(body.tools);
 
 test("allowWeb false: needsWeb is ignored, exactly one upstream call", async () => {
   upstream.push(pass1());
@@ -82,38 +82,46 @@ test("allowWeb true but nothing uncovered: no web pass", async () => {
   assert.equal(upstream.requests.length, 1);
 });
 
-test("allowWeb true and needsWeb: pass 2 uses the web tool; annotated URLs kept, invented URLs dropped", async () => {
+test("web pass: one prose call per uncovered cue, citations only from that call's annotations", async () => {
   upstream.push(pass1(["c2", "c1", "ghost"]));
-  upstream.push(webAnswer(
-    [
-      { cueId: "c2", title: "Chemiosmosis", body: "Ions move across a membrane down their gradient.", urls: ["https://example.edu/chemiosmosis/", "https://invented.example/fake"] },
-      { cueId: "c1", title: "Oxygen", body: "Web answer with only an invented URL.", urls: ["https://invented.example/oxygen"] },
-    ],
-    [urlCitation("https://example.edu/chemiosmosis", "Chemiosmosis — Example University")],
-  ));
+  upstream.push({
+    match: (b) => isWebCall(b) && mentions("chemiosmosis")(b),
+    ...prose(
+      "**Chemiosmosis** is ion movement across a membrane [1]. See https://invented.example/fake for more.",
+      [urlCitation("https://example.edu/chemiosmosis", "Chemiosmosis — Example University"), urlCitation("https://example.edu/chemiosmosis/", "dup")],
+    ),
+  });
+  upstream.push({ match: (b) => isWebCall(b) && mentions("oxygen")(b), ...prose("An answer with no annotations at all.", []) });
   const r = await analyze({ ...base, allowWeb: true }, { port: webPort });
   assert.equal(r.status, 200, JSON.stringify(r.json));
-  assert.equal(upstream.requests.length, 2);
-  const web = upstream.requests[1].body;
-  assert.deepEqual(web.tools, [{ type: "openrouter:web_search", parameters: { max_results: 3 } }]);
-  assert.ok(!web.messages[1].content.includes('"ghost"'), "only real cue ids go to pass 2");
+  assert.equal(upstream.requests.length, 3, "pass 1 + one call per real cue (ghost ignored)");
+  const webCalls = upstream.requests.filter((q) => isWebCall(q.body)).map((q) => q.body);
+  for (const web of webCalls) {
+    assert.deepEqual(web.tools, [{ type: "openrouter:web_search", parameters: { max_results: 3 } }]);
+    assert.equal(web.response_format, undefined, "prose call: annotations only come back for prose");
+    assert.ok(web.messages[1].content.startsWith("<data>"));
+  }
   const [c1, c2] = r.json.cueAnswers;
   assert.deepEqual(c2.citations, [{ kind: "web", url: "https://example.edu/chemiosmosis", title: "Chemiosmosis — Example University" }]);
+  assert.equal(c2.body, "Chemiosmosis is ion movement across a membrane. See for more.", "markdown, URLs, [n] markers stripped");
+  assert.equal(c2.title, "T c2", "title kept from pass 1");
   assert.equal(c2.unverified, undefined);
-  assert.equal(c1.body, "Answer c1.", "answer with only invented URLs keeps its pass-1 version");
+  assert.equal(c1.body, "Answer c1.", "web answer without annotations keeps the pass-1 answer");
   assert.equal(r.json.sourceMode, "web");
 });
 
-test("single uncovered cue: provider annotations back the answer even if the model lists no URLs", async () => {
-  upstream.push(pass1(["c2"]));
-  upstream.push(webAnswer([{ cueId: "c2", title: "Chemiosmosis", body: "Web body.", urls: [] }], [urlCitation("https://a.example/x", "")]));
-  const r = await analyze({ ...base, allowWeb: true }, { port: webPort });
-  assert.deepEqual(r.json.cueAnswers[1].citations, [{ kind: "web", url: "https://a.example/x", title: "a.example" }]);
+test("web pass is capped at 3 cues", async () => {
+  const cues = Array.from({ length: 5 }, (_, i) => ({ id: `k${i}`, kind: "vocab", text: `term${i}`, atSec: null }));
+  upstream.push(completion(decision({ action: "skip", sourceSegmentId: "", needsWeb: cues.map((c) => c.id) })));
+  for (let i = 0; i < 5; i++) upstream.push({ match: isWebCall, ...prose("Def.", [urlCitation(`https://x.example/${i}`, "x")]) });
+  const r = await analyze({ ...base, cues, allowWeb: true }, { port: webPort });
+  assert.equal(upstream.requests.filter((q) => isWebCall(q.body)).length, 3);
+  assert.equal(r.json.cueAnswers.length, 3);
 });
 
 test("web pass failure leaves pass-1 answers intact (200, not 502)", async () => {
   upstream.push(pass1(["c2"]));
-  upstream.push({ status: 500, body: { error: { code: 500, message: "search down" } } });
+  upstream.push({ status: 429, body: { error: { code: 429, message: "rate limited" } } });
   const r = await analyze({ ...base, allowWeb: true }, { port: webPort });
   assert.equal(r.status, 200);
   assert.equal(r.json.cueAnswers[1].body, "Pass-1 guess.");
@@ -198,25 +206,48 @@ test("assist: empty hint -> 502; hint clipped to 800", async () => {
   assert.ok(r.json.hint.length <= 800);
 });
 
-test("assist: web pass only when allowWeb and needsWeb; invented URLs dropped", async () => {
+test("assist: no web calls unless allowWeb and needsWeb", async () => {
   upstream.push(completion(assistOut({ needsWeb: true })));
   await assist({ ...ASSIST, allowWeb: false }, { port: webPort });
-  assert.equal(upstream.requests.length, 1);
+  upstream.push(completion(assistOut({ needsWeb: false })));
+  await assist({ ...ASSIST, allowWeb: true }, { port: webPort });
+  assert.equal(upstream.requests.length, 2);
+  assert.ok(upstream.requests.every((q) => !q.body.tools));
+});
 
-  upstream.requests = [];
+test("assist: prose research, then a hint citing web sources by id; unknown ids dropped; URLs never from the model", async () => {
   upstream.push(completion(assistOut({ needsWeb: true })));
+  upstream.push(prose("Gibbs free energy combines enthalpy and entropy.", [urlCitation("https://chem.example/gibbs", "Gibbs free energy"), urlCitation("https://chem.example/entropy", "")]));
   const { needsWeb, ...web } = assistOut({
-    citations: [{ kind: "web", id: "", url: "https://chem.example/gibbs" }, { kind: "web", id: "", url: "https://made.up/x" }],
-    equations: [{ text: "dG = dH - T dS", tex: "", citation: { kind: "web", id: "", url: "https://made.up/y" } }],
+    citations: [{ kind: "web", id: "web1" }, { kind: "web", id: "web9" }, { kind: "material", id: "m2" }],
+    equations: [
+      { text: "dG = dH - T dS", tex: "", citation: { kind: "web", id: "web2" } },
+      { text: "invented", tex: "", citation: { kind: "web", id: "https://made.up/y" } },
+    ],
     relevantNotes: [],
   });
-  upstream.push(completion(web, { annotations: [urlCitation("https://chem.example/gibbs", "Gibbs free energy")] }));
+  upstream.push(completion(web));
+  const r = await assist({ ...ASSIST, allowWeb: true }, { port: webPort });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(upstream.requests.length, 3);
+  const [, research, hint] = upstream.requests.map((q) => q.body);
+  assert.deepEqual(research.tools, [{ type: "openrouter:web_search", parameters: { max_results: 3 } }]);
+  assert.equal(research.response_format, undefined);
+  assert.equal(hint.tools, undefined);
+  const hintData = hint.messages[1].content;
+  assert.ok(hintData.includes('"webSources":[{"id":"web1","title":"Gibbs free energy"},{"id":"web2","title":"chem.example"}]'));
+  assert.ok(!hintData.includes("https://"), "URLs are not shown to the model");
+  assert.deepEqual(r.json.citations, [{ kind: "web", url: "https://chem.example/gibbs", title: "Gibbs free energy" }, { kind: "material", excerptId: "m2" }]);
+  assert.deepEqual(r.json.equations, [{ text: "dG = dH - T dS", citation: { kind: "web", url: "https://chem.example/entropy", title: "chem.example" } }]);
+  assert.equal(r.json.sourceMode, "web");
+});
+
+test("assist: research with no annotations keeps pass 1 (no third call)", async () => {
+  upstream.push(completion(assistOut({ needsWeb: true })));
+  upstream.push(prose("Some text but no sources."));
   const r = await assist({ ...ASSIST, allowWeb: true }, { port: webPort });
   assert.equal(upstream.requests.length, 2);
-  assert.deepEqual(upstream.requests[1].body.tools, [{ type: "openrouter:web_search", parameters: { max_results: 3 } }]);
-  assert.deepEqual(r.json.citations, [{ kind: "web", url: "https://chem.example/gibbs", title: "Gibbs free energy" }]);
-  assert.deepEqual(r.json.equations, [], "equation citing an invented URL is dropped");
-  assert.equal(r.json.sourceMode, "web");
+  assert.equal(r.json.sourceMode, "materials");
 });
 
 test("assist: web pass failure falls back to pass 1", async () => {

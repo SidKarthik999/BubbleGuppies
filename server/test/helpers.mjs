@@ -21,8 +21,11 @@ const stub = http.createServer((req, res) => {
   let raw = "";
   req.on("data", (c) => (raw += c));
   req.on("end", () => {
-    upstream.requests.push({ headers: req.headers, body: JSON.parse(raw) });
-    const step = upstream.queue.shift() ?? { status: 500, body: { error: { code: 500, message: "no stub step queued" } } };
+    const body = JSON.parse(raw);
+    upstream.requests.push({ headers: req.headers, body });
+    // Steps with `match` answer only matching requests (for parallel calls).
+    const i = upstream.queue.findIndex((s) => !s.match || s.match(body));
+    const step = i >= 0 ? upstream.queue.splice(i, 1)[0] : { status: 500, body: { error: { code: 500, message: "no stub step queued" } } };
     if (step.hang) return; // never respond -> provokes our timeout
     const send = () => {
       res.writeHead(step.status ?? 200, { "Content-Type": "application/json" });
@@ -43,7 +46,15 @@ export const completion = (data, { finish = "stop", annotations } = {}) => ({
   },
 });
 
-export const urlCitation = (url, title) => ({ type: "url_citation", url_citation: { url, title, content: "…" } });
+/** A prose (non-JSON) completion, as returned by a web-search call. */
+export const prose = (text, annotations = []) => ({
+  body: { choices: [{ finish_reason: "stop", message: { role: "assistant", content: text, annotations } }] },
+});
+
+/** Matches a request whose user message mentions `needle`. */
+export const mentions = (needle) => (body) => JSON.stringify(body.messages.at(-1).content).includes(needle);
+
+export const urlCitation =(url, title) => ({ type: "url_citation", url_citation: { url, title, content: "…" } });
 
 const listen = (srv) => new Promise((r) => srv.listen(0, "127.0.0.1", () => r(srv.address().port)));
 const upstreamPort = await listen(stub);
