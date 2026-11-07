@@ -54,7 +54,7 @@ either source) to exercise the same sample against the real
 src/
   types.ts                  shared contract with the API (keep in sync with server/)
   lib/
-    lectureClock.ts          single clock: timer, transcript timestamps, recording seeks
+    lectureClock.ts          single clock: timer, transcript timestamps, ink timestamps, seeks
     analyzeClient.ts         request queue: one in-flight call, coalesces the rest
     sampleTranscript.ts      timed fixture transcript for the offline demo
     offlineFixtures.ts       deterministic fixture responses for the sample
@@ -64,10 +64,68 @@ src/
     useSpeechRecognition.ts  live transcription, auto-restarts on unexpected stops
     useLectureSession.ts     orchestrates the above into one session
   components/                UI: recording controls, transcript panel, visual
-                              renderer (Mermaid + SVG schematic), timeline, review
+                              renderer (SVG), timeline, review
 server/
   .env.example                tracked; copy to .env (gitignored) for a real key
 ```
+
+## v2.1 — Notes (handwriting)
+
+The app opens in **Notes** view: a notebook you write in, with the live
+study-guide visual, timeline, and a collapsible transcript beside it. The
+original layout is still under **Guide**. Recording, the lecture clock, the
+timeline, **Back to live**, review, and the offline demo all work as before
+in both views.
+
+**Layout at 1280 px:** notebook column (flexible, ≈900 px — a full 816 px
+page at 100% zoom) + a 380 px side column (recording player after a lecture,
+live visual, timeline, collapsible transcript). Chosen so the page is never
+squeezed while the visual stays visible.
+
+**What works**
+
+- Notebook of pages: lined, grid, or blank, plus **PDF pages** (class
+  materials, problem sets) as backgrounds to write on.
+- Pen (6 colors, 3 widths), highlighter (translucent, beneath the ink),
+  eraser (whole stroke, or partial with Shift+E), lasso (move, recolor,
+  delete), text boxes, undo/redo. Press `?` for all keyboard shortcuts.
+- Mouse, trackpad, and stylus (pressure). Once a pen is seen, touch stops
+  drawing and pans/pinch-zooms instead (palm rejection). Ctrl/⌘+scroll zooms.
+- Strokes are stored as vectors per page in IndexedDB and autosave; each is
+  stamped with the lecture clock. After a lecture, pick ▶︎ (S) and tap ink to
+  jump the recording to when it was written. The sample demo synthesizes a
+  placeholder track so this works offline too.
+
+**Visuals:** one SVG renderer handles every visual type from Agent 2's v2.1
+server (concept map, flowchart, cycle, timeline, hierarchy, comparison, venn,
+chart, schematic, recap) with a layout per type, group colors with a legend,
+gold ★ for important nodes, dashed `?` for question nodes (click to expand
+the detail). Visuals are validated in the browser first; anything unusable
+falls back to the recap card. The old renderer drew everything through
+Mermaid's flowchart grammar and drew unknown types as flowcharts — that's
+why every graphic looked like a flowchart.
+
+**Not wired into the UI yet:** the on-device cue detector (`??`, ★,
+highlight → vocab) is built and evaluated (`npm run eval:cues`, results
+below), and the analysis client already sends `cues` and
+`recentVisualTypes`, but detected cues aren't surfaced in the notes yet.
+
+**New dependencies**
+
+- `perfect-freehand` — turns pointer samples + pressure into smooth,
+  variable-width stroke outlines; small, no runtime deps.
+- `pdfjs-dist` — renders PDF pages as notebook backgrounds. Loaded only when
+  a PDF is opened; needs a 2024+ browser (`Promise.withResolvers`).
+- `mermaid` was removed (it rendered every graph as a flowchart).
+
+**Cue detection eval** (synthetic strokes — no real pen samples recorded
+yet; run `npm run eval:cues`): `??` 94%, ★ rows 100% (correct count 100%),
+highlight→vocab 100%, false positives on letters/digits/math 0.1% per glyph
+and 0/100 pages of ordinary writing. Drop real samples in
+`tests/fixtures/real-ink-samples.json` to measure on real handwriting.
+
+**Housekeeping:** files retired during development live in `.trash/`
+(gitignored) and can be deleted.
 
 ## Known gaps / integration notes
 
